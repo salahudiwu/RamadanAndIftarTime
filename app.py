@@ -10,7 +10,7 @@ from timezonefinder import TimezoneFinder
 st.set_page_config(page_title="Ramadan & Gebetszeiten", page_icon="🌙")
 st.title("🌙 Ramadan & Gebetszeiten")
 
-city_input = st.text_input("Stadt eingeben:", "Aachen")
+city_input = st.text_input("Stadt eingeben:", "Berlin")
 
 geolocator = Nominatim(user_agent="ramadan_prayer_timer")
 tf = TimezoneFinder()
