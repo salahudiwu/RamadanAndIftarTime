@@ -8,24 +8,35 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 from streamlit_autorefresh import st_autorefresh
+from streamlit_lottie import st_lottie
 
-# 1. ANTI-BLUR CSS (Verhindert das Flackern/Verschwimmen beim Update)
+# --- 1. DESIGN: RAMADAN NIGHT STYLE ---
 st.markdown(
     """
     <style>
+    .stApp {
+        background-color: #0a192f;
+        color: #e6f1ff;
+    }
+    div[data-testid="stMetricValue"] {
+        color: #ffd700 !important;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 15px;
+        border: 1px solid #ffd700;
+    }
     [data-testid="stStatusWidget"] { display: none; }
     .stApp { opacity: 1 !important; filter: none !important; }
-    div[data-testid="stMetricValue"] { filter: none !important; opacity: 1 !important; }
-    .st-emotion-cache-6q9sum.ef3psqc4 { filter: none !important; }
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# 2. LIVE-UPDATE (Alle 1 Sekunde)
-st_autorefresh(interval=1000, key="ramadan_timer")
+# --- 2. HILFSFUNKTIONEN ---
+def load_lottieurl(url):
+    r = requests.get(url)
+    return r.json() if r.status_code == 200 else None
 
-# 3. IP-BASIERTE ORTUNG
 @st.cache_data(ttl=3600)
 def get_ip_info():
     try:
@@ -34,71 +45,63 @@ def get_ip_info():
     except:
         return {"city": "Aachen", "country": "DE"}
 
+# Animation laden (Schwingende Laterne)
+ani_lantern = load_lottieurl("https://lottie.host")
+
+# Live-Update jede Sekunde
+st_autorefresh(interval=1000, key="ramadan_live")
+
+# --- 3. APP LOGIK ---
 ip_info = get_ip_info()
-user_lang = 'en' if ip_info["country"] not in ['DE', 'AT', 'CH'] else 'de'
+st.title("🌙 Ramadan & Gebetszeiten Live")
 
-# Texte
-texts = {
-    "de": {"title": "🌙 Ramadan & Gebetszeiten Live", "input": "Stadt ändern:", "cd": "Bis Ramadan", "iftar": "Zeit bis Iftar", "pray": "Alle Gebetszeiten"},
-    "en": {"title": "🌙 Ramadan & Prayer Times Live", "input": "Change City:", "cd": "Until Ramadan", "iftar": "Time to Iftar", "pray": "All Prayer Times"}
-}
-T = texts[user_lang]
+# Animation anzeigen
+if ani_lantern:
+    st_lottie(ani_lantern, height=200, key="lantern")
 
-st.title(T["title"])
+city_input = st.text_input("📍 Standort anpassen:", value=ip_info["city"])
 
-# 4. STADT-EINGABE (Mit IP als Standard)
-st.markdown(f"#### 📍 Standort: `{ip_info['city']}`")
-city_input = st.text_input(T["input"], value=ip_info["city"])
-
-geolocator = Nominatim(user_agent="ramadan_final_app_v10")
+geolocator = Nominatim(user_agent="ramadan_final_pro_v15")
 tf = TimezoneFinder()
 
 try:
-    location = geolocator.geocode(city_input, language=user_lang)
+    location = geolocator.geocode(city_input)
     if location:
         lat, lon = location.latitude, location.longitude
         tz_name = tf.timezone_at(lng=lon, lat=lat)
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
-        # Karte
-        st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
-
-        # Berechnungen (Astral)
+        # Ramadan Start 18.02.2026
+        ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
+        
         city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
         s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
         
-        # Ramadan Start 18.02.2026
-        ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
-
-        col1, col2 = st.columns(2)
-
-        # TIMER 1: Countdown bis Ramadan
+        # Countdown bis Ramadan
         if now < ramadan_start:
             diff = ramadan_start - now
             h, rem = divmod(int(diff.total_seconds()), 3600)
             m, s_val = divmod(rem, 60)
-            col1.metric(T["cd"], f"{diff.days}T {h%24:02d}:{m:02d}:{s_val:02d}")
-        else:
-            col1.info("Ramadan hat begonnen!")
-
-        # TIMER 2: Iftar Countdown
-        iftar_heute = s['sunset']
-        if now < iftar_heute:
-            d = iftar_heute - now
+            st.metric("Countdown bis Ramadan 2026", f"{diff.days}T {h%24:02d}:{m:02d}:{s_val:02d}")
+        
+        # Iftar Timer (Immer sichtbar zum Testen)
+        iftar_time = s['sunset']
+        if now < iftar_time:
+            d = iftar_time - now
             h, rem = divmod(int(d.total_seconds()), 3600)
             m, s_val = divmod(rem, 60)
-            col2.metric(T["iftar"], f"{h:02d}:{m:02d}:{s_val:02d}")
+            st.metric("Zeit bis Iftar heute", f"{h:02d}:{m:02d}:{s_val:02d}")
         else:
-            col2.success("Guten Appetit! 🍽️")
+            st.success("Guten Appetit! Iftar war bereits. 🍽️")
 
-        # 5. GEBETSZEITEN TABELLE
-        st.subheader(T["pray"])
-        asr_time = s['noon'] + (s['sunset'] - s['noon']) * 0.5 
+        st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
         
+        # Gebetszeiten Tabelle
+        st.subheader("Gebetszeiten")
+        asr_time = s['noon'] + (s['sunset'] - s['noon']) * 0.5 
         prayers = {
             "Fajr (Sahur-Ende)": s['dawn'].strftime("%H:%M"),
-            "Shuruq": s['sunrise'].strftime("%H:%M"),
             "Dhuhr": s['noon'].strftime("%H:%M"),
             "Asr": asr_time.strftime("%H:%M"),
             "Maghrib (Iftar)": s['sunset'].strftime("%H:%M"),
@@ -107,4 +110,4 @@ try:
         st.table(pd.DataFrame(prayers.items(), columns=["Gebet", "Uhrzeit"]))
 
 except:
-    st.write("Suche läuft...")
+    st.write("Suche Standort...")
