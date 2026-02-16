@@ -61,7 +61,24 @@ with tabs[1]:
     st.header("🌙 Weltweite Iftar Zeiten")
     st.info("Zeigt Sunset/Iftar Zeiten für ausgewählte Städte")
 
-    
+    # Beispiel Städte
+    cities = {
+        "Mekka, Saudi-Arabien": (21.3891, 39.8579),
+        "Kairo, Ägypten": (30.0444, 31.2357),
+        "Istanbul, Türkei": (41.0082, 28.9784),
+        "Berlin, Deutschland": (52.5200, 13.4050),
+        "Karabulak, Inguschetien": (43.3130, 44.9080),
+        "Antwerpen, Belgien": (51.2194, 4.4025),
+        "Houten Castellum, Niederlande": (52.0181, 5.1789),
+        "München, Deutschland": (48.1374, 11.5755),
+         "Oulu, Finnland": (65.0121, 25.4651)
+
+
+   
+    }
+
+    selected_city = st.selectbox("Stadt auswählen:", list(cities.keys()))
+    lat, lon = cities[selected_city]
 
     # Zeitzone ermitteln
     tf = pytz.timezone("UTC")
@@ -84,6 +101,7 @@ with tabs[1]:
         st.success(f"🌙 Zeit bis Iftar in {selected_city}: {hrs}h {mins}m {secs}s")
     else:
         st.warning(f"🍽️ Iftar in {selected_city} vorbei!")
+
 
 
 
