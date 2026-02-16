@@ -9,19 +9,18 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-# --- 1. DESIGN & CSS ---
+# --- 1. DESIGN ---
 st.set_page_config(page_title="Ramadan & Quran App", page_icon="🌙")
-
 st.markdown("""
     <style>
     .stApp { background-color: #0a192f; color: #e6f1ff; }
     [data-testid="stStatusWidget"] { display: none; }
     .stTable { background-color: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-    audio { width: 100%; border-radius: 10px; margin: 10px 0; }
+    audio { width: 100%; border-radius: 10px; margin: 10px 0; border: 2px solid #ffd700; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. HILFSFUNKTIONEN ---
+# --- 2. IP-ORTUNG ---
 @st.cache_data(ttl=3600)
 def get_ip_info():
     try:
@@ -42,28 +41,17 @@ ip_info = get_ip_info()
 st.title("🌙 Ramadan & Quran Live")
 
 st.subheader("🎧 Koran Rezitation (Mishary Alafasy)")
-
-# Auswahlbox für alle 114 Suren
-surah_idx = st.selectbox("Wähle eine Sure aus:", range(1, 115), format_func=lambda x: f"Sure {x}")
-
-# Formatierung für den EveryAyah Server (001, 002...)
+surah_idx = st.selectbox("Wähle eine Sure (1-114):", range(1, 115), index=0)
 formatted_num = f"{surah_idx:03d}"
-
-# Stabiler Server Link
+# Stabiler EveryAyah Link
 audio_url = f"https://www.everyayah.com{formatted_num}.mp3"
-
-# Player mit Fehlerabfang
-try:
-    st.audio(audio_url, format="audio/mp3")
-    st.caption(f"Quelle: EveryAyah.com | Rezitator: Mishary Rashid Alafasy")
-except:
-    st.error("Audio konnte nicht geladen werden. Bitte Seite neu laden.")
+st.audio(audio_url, format="audio/mp3")
 
 # --- 4. STANDORT & TIMER ---
 city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Aachen"))
 
 try:
-    geolocator = Nominatim(user_agent="ramadan_quran_final_stable")
+    geolocator = Nominatim(user_agent="ramadan_quran_final_pro")
     location = geolocator.geocode(city_input)
     
     if location:
@@ -72,33 +60,31 @@ try:
         tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
-
         city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
         s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
         
         # OFFLINE-TIMER BOX (JavaScript)
-        html_code = """
+        st.components.v1.html(f"""
         <div style="background: rgba(255,255,255,0.1); color: #ffd700; padding: 20px; border-radius: 15px; text-align: center; font-family: sans-serif; border: 2px solid #ffd700;">
             <h3 style="margin:0;">Countdown bis Ramadan 2026</h3>
-            <h1 id="cd_val" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
+            <h1 id="cd" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
         </div>
         <script>
             var target = new Date("Feb 18, 2026 00:00:00").getTime();
-            function update() {
+            function up() {{
                 var n = new Date().getTime();
                 var d = target - n;
-                if (d > 0) {
+                if (d > 0) {{
                     var days = Math.floor(d / 86400000);
                     var hrs = Math.floor((d % 86400000) / 3600000);
                     var min = Math.floor((d % 3600000) / 60000);
                     var sec = Math.floor((d % 60000) / 1000);
-                    document.getElementById("cd_val").innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
-                } else { document.getElementById("cd_val").innerHTML = "🌙 Ramadan Mubarak!"; }
-            }
-            setInterval(update, 1000); update();
+                    document.getElementById("cd").innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
+                }} else {{ document.getElementById("cd").innerHTML = "🌙 Ramadan Mubarak!"; }}
+            }}
+            setInterval(up, 1000); up();
         </script>
-        """
-        st.components.v1.html(html_code, height=160)
+        """, height=180)
 
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
@@ -111,11 +97,6 @@ try:
             ["Isha", s['dusk'].strftime("%H:%M")]
         ]
         st.table(pd.DataFrame(prayer_list, columns=["Gebet", "Uhrzeit"]))
-        
-        st.info(f"🕋 Qibla: {calculate_qibla(lat, lon):.1f}° | 🕒 {now.strftime('%H:%M')} Uhr")
-
-    else:
-        st.error("Stadt nicht gefunden.")
-
-except Exception as e:
+        st.info(f"🕋 Qibla: {calculate_qibla(lat, lon):.2f}° | 🕒 Zeit vor Ort: {now.strftime('%H:%M')}")
+except:
     st.info("Suche Standort...")
