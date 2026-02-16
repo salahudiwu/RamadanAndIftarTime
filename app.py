@@ -119,14 +119,6 @@ st.set_page_config(
 
 
 
-# --- TABS ---
-tabs = st.tabs([
-    "🌙 Dashboard",
-    "📿 Dhikr",
-    "📚 Tafsir",
-    "🕌 Kalender",
-    "🎧 Quran Audio"
-])
 
 
 
