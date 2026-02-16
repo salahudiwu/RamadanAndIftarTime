@@ -122,7 +122,7 @@ except Exception as e:
 
 # --- SURAH PLAYER ---
 
-st.markdown("## 🎧 Auto Quran Player")
+st.markdown("## 🎧 Quran Player")
 
 @st.cache_data(ttl=86400)
 def get_surah_list():
@@ -148,7 +148,7 @@ if st.button("▶ Sure starten"):
 
 
 # --- 4. QURAN SUREN INTERFACE ---
-st.markdown("## 📖 Quran – ")
+st.markdown("## 📖 Quran  ")
 
 @st.cache_data(ttl=86400)
 def get_surahs():
