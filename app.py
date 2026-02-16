@@ -59,14 +59,8 @@ with tabs[1]:
     st.header("🌙 Weltweite Iftar Zeiten")
     st.info("Zeigt Sunset/Iftar Zeiten für ausgewählte Städte")
 
-    # Beispiel Städte
-    cities = {
-        "Mekka, Saudi-Arabien": (21.3891, 39.8579),
-        "Kairo, Ägypten": (30.0444, 31.2357),
-        "Istanbul, Türkei": (41.0082, 28.9784),
-        "Berlin, Deutschland": (52.5200, 13.4050),
-        "Jakarta, Indonesien": (-6.2088, 106.8456)
-    }
+    
+    
 
     selected_city = st.selectbox("Stadt auswählen:", list(cities.keys()))
     lat, lon = cities[selected_city]
