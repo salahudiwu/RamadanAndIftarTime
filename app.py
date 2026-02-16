@@ -108,9 +108,9 @@ try:
 except Exception as e:
     st.info("Suche Standort...")
 
-# --- QURAN AUDIO UI ---
+# --- SURAH PLAYER ---
 
-st.markdown("## 🎧 Quran Audio Player")
+st.markdown("## 🎧 Auto Quran Player")
 
 @st.cache_data(ttl=86400)
 def get_surah_list():
@@ -118,33 +118,20 @@ def get_surah_list():
     r = requests.get(url, timeout=10)
     return r.json()["data"]
 
-@st.cache_data(ttl=86400)
-def get_full_surah_audio(num):
-    url = f"https://api.alquran.cloud/v1/surah/{num}/ar.alafasy"
-    r = requests.get(url, timeout=10)
-    return r.json()["data"]
+surahs = get_surah_list()
 
-try:
-    surahs = get_surah_list()
+options = [f"{s['number']} — {s['englishName']}" for s in surahs]
+selected = st.selectbox("Sure auswählen:", options)
 
-    # Dropdown UI
-    options = [f"{s['number']} — {s['englishName']}" for s in surahs]
-    selected_audio = st.selectbox("🎵 Sure auswählen:", options, key="audio_select")
+surah_num = int(selected.split(" — ")[0])
 
-    surah_audio_num = int(selected_audio.split(" — ")[0])
+# komplette Sure als EIN Stream
+audio_url = f"https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/{surah_num}.mp3"
 
-    # Play Button
-    if st.button("▶ Sure abspielen"):
-        audio_data = get_full_surah_audio(surah_audio_num)
+if st.button("▶ Sure starten"):
+    st.success("Auto-Wiedergabe läuft…")
 
-        st.success("Rezitation läuft…")
-
-        for ayah in audio_data["ayahs"]:
-            if "audio" in ayah:
-                st.audio(ayah["audio"], format="audio/mp3")
-
-except:
-    st.warning("Audio-Player konnte nicht geladen werden.")
+    st.audio(audio_url, format="audio/mp3")
 
 
 
