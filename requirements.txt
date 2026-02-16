@@ -4,5 +4,3 @@ requests
 timezonefinder
 pytz
 streamlit
-streamlit-autorefresh
-streamlit-lottie
