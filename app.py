@@ -26,36 +26,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Theme Toggle
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
 
-def toggle_theme():
-    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-
-st.button("🌗 Theme wechseln", on_click=toggle_theme)
-
-# Theme Styles
-if st.session_state.theme == "dark":
-    st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(180deg, #0a192f, #020617);
-        color: #e6f1ff;
-    }
-    .block-container { padding-top: 2rem; }
-    </style>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <style>
-    .stApp {
-        background: linear-gradient(180deg, #ffffff, #f0f0f0);
-        color: #0a192f;
-    }
-    .block-container { padding-top: 2rem; }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- 2. IP-ORTUNG ---
 @st.cache_data(ttl=3600)
@@ -233,4 +204,33 @@ except Exception as e:
     st.warning("Suren konnten nicht geladen werden.")
 
 
-    
+  # Theme Toggle
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+def toggle_theme():
+    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+
+st.button("🌗 Theme wechseln", on_click=toggle_theme)
+
+# Theme Styles
+if st.session_state.theme == "dark":
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(180deg, #0a192f, #020617);
+        color: #e6f1ff;
+    }
+    .block-container { padding-top: 2rem; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(180deg, #ffffff, #f0f0f0);
+        color: #0a192f;
+    }
+    .block-container { padding-top: 2rem; }
+    </style>
+    """, unsafe_allow_html=True)  
