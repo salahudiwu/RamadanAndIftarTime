@@ -135,11 +135,11 @@ def get_ip_info():
         r = requests.get('https://ipapi.co', timeout=5)
         return r.json()
     except:
-        return {"city": "Aachen"}
+        return {"city": "Berlin"}
 
 ip_info = get_ip_info()
 st.title("🌙 Ramadan & Iftar Live-Timer")
-city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Aachen"))
+city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Berlin"))
 
 # --- 3. LOGIK ---
 try:
