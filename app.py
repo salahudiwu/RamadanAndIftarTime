@@ -8,6 +8,24 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
+
+
+
+# --- 1. DESIGN ---
+st.set_page_config(page_title="Ramadan & Iftar Timer", page_icon="🌙")
+st.markdown("""
+    <style>
+    .stApp { background-color: #0a192f; color: #e6f1ff; }
+    [data-testid="stStatusWidget"] { display: none; }
+    .stTable { background-color: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+    div[data-testid="stMetricValue"] {
+        color: #ffd700 !important;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 15px; border-radius: 15px; border: 1px solid #ffd700;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # Theme Toggle
 if "theme" not in st.session_state:
     st.session_state.theme = "dark"
@@ -36,22 +54,6 @@ else:
         color: #0a192f;
     }
     .block-container { padding-top: 2rem; }
-    </style>
-    """, unsafe_allow_html=True)
-
-
-# --- 1. DESIGN ---
-st.set_page_config(page_title="Ramadan & Iftar Timer", page_icon="🌙")
-st.markdown("""
-    <style>
-    .stApp { background-color: #0a192f; color: #e6f1ff; }
-    [data-testid="stStatusWidget"] { display: none; }
-    .stTable { background-color: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-    div[data-testid="stMetricValue"] {
-        color: #ffd700 !important;
-        background-color: rgba(255, 255, 255, 0.1);
-        padding: 15px; border-radius: 15px; border: 1px solid #ffd700;
-    }
     </style>
     """, unsafe_allow_html=True)
 
