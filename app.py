@@ -234,3 +234,19 @@ else:
     .block-container { padding-top: 2rem; }
     </style>
     """, unsafe_allow_html=True)  
+
+   with tabs[2]:
+    st.header("📚 Tafsir Viewer")
+
+    surah_num = st.number_input("Sure Nummer", 1, 114, 1)
+    ayah_num = st.number_input("Ayah Nummer", 1, 286, 1)
+
+    if st.button("Tafsir laden"):
+        try:
+            url = f"https://api.alquran.cloud/v1/ayah/{surah_num}:{ayah_num}/de.bubenheim"
+            r = requests.get(url).json()
+            st.success(f"Tafsir Sure {surah_num}:{ayah_num}")
+            st.markdown(f"<div style='max-height:400px; overflow-y:auto; padding:10px; border:1px solid #ffd700; border-radius:10px;'>{r['data']['text']}</div>", unsafe_allow_html=True)
+        except:
+            st.error("Tafsir konnte nicht geladen werden.")
+
