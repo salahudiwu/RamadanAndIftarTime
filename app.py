@@ -30,61 +30,92 @@ st.session_state.lang = st.selectbox(
 
 lang = st.session_state.lang
 
+import streamlit as st
+from googletrans import Translator  # pip install googletrans==4.0.0-rc1
+import datetime
+
 # ------------------------------
-# 2️⃣ Übersetzungen für UI
+# 1️⃣ Spracheinstellungen
 # ------------------------------
-texts = {
-    "de": {
-        "title": "🌙 Ramadan & Iftar App",
-        "dhikr_header": "📿 Dhikr & Ramadan Streak Tracker",
-        "dhikr_btn": "➕ Zählen",
-        "reset_dhikr": "🔄 Reset Dhikr",
-        "reset_streak": "📅 Reset Streak",
-        "dhikr_count": "Dhikr Count",
-        "ramadan_streak": "Ramadan Streak",
-        "world_ifatr": "🌙 Weltweite Iftar Zeiten",
-        "select_city": "Stadt auswählen:",
-        "time_until_ifatr": "Zeit bis Iftar in",
-        "iftar_passed": "🍽️ Iftar vorbei!",
-        "quran_player": "🎧 Quran Player",
-        "quran_text": "📖 Quran",
-        "theme_btn": "🌗 Theme wechseln"
-    },
-    "en": {
-        "title": "🌙 Ramadan & Iftar App",
-        "dhikr_header": "📿 Dhikr & Ramadan Streak Tracker",
-        "dhikr_btn": "➕ Add",
-        "reset_dhikr": "🔄 Reset Dhikr",
-        "reset_streak": "📅 Reset Streak",
-        "dhikr_count": "Dhikr Count",
-        "ramadan_streak": "Ramadan Streak",
-        "world_ifatr": "🌙 Worldwide Iftar Times",
-        "select_city": "Select city:",
-        "time_until_ifatr": "Time until Iftar in",
-        "iftar_passed": "Iftar passed!",
-        "quran_player": "🎧 Quran Player",
-        "quran_text": "📖 Quran",
-        "theme_btn": "🌗 Toggle Theme"
-    },
-    "ar": {
-        "title": "🌙 رمضان وإفطار",
-        "dhikr_header": "📿 عداد الذكر وسلسلة رمضان",
-        "dhikr_btn": "➕ زيادة",
-        "reset_dhikr": "🔄 إعادة الذكر",
-        "reset_streak": "📅 إعادة السلسلة",
-        "dhikr_count": "عداد الذكر",
-        "ramadan_streak": "سلسلة رمضان",
-        "world_ifatr": "🌙 أوقات الإفطار العالمية",
-        "select_city": "اختر المدينة:",
-        "time_until_ifatr": "الوقت المتبقي للإفطار في",
-        "iftar_passed": "🍽️ الإفطار انتهى!",
-        "quran_player": "🎧 مشغل القرآن",
-        "quran_text": "📖 القرآن",
-        "theme_btn": "🌗 تبديل الوضع"
-    }
+if "lang" not in st.session_state:
+    # Standard: automatische Erkennung via IP oder Browser
+    st.session_state.lang = "de"  # Standard, kann man noch automatisch setzen
+
+lang = st.session_state.lang
+
+# Dropdown für Sprache (kann jederzeit geändert werden)
+st.session_state.lang = st.selectbox(
+    "Sprache auswählen / Select Language / اختر اللغة",
+    options=["de","en","fr","es","tr","ar","id","ur"],
+    index=["de","en","fr","es","tr","ar","id","ur"].index(st.session_state.lang)
+)
+lang = st.session_state.lang
+
+# ------------------------------
+# 2️⃣ Texte
+# ------------------------------
+ui_texts = {
+    "title": "🌙 Ramadan & Iftar App",
+    "dhikr_header": "📿 Dhikr & Ramadan Streak Tracker",
+    "dhikr_btn": "➕ Zählen",
+    "reset_dhikr": "🔄 Reset Dhikr",
+    "reset_streak": "📅 Reset Streak",
+    "dhikr_count": "Dhikr Count",
+    "ramadan_streak": "Ramadan Streak",
+    "world_ifatr": "🌙 Weltweite Iftar Zeiten",
+    "select_city": "Stadt auswählen:",
+    "time_until_ifatr": "Zeit bis Iftar in",
+    "iftar_passed": "🍽️ Iftar vorbei!",
+    "quran_player": "🎧 Quran Player",
+    "quran_text": "📖 Quran",
+    "theme_btn": "🌗 Theme wechseln"
 }
 
-t = texts[lang]
+# ------------------------------
+# 3️⃣ Übersetzung (außer Arabisch)
+# ------------------------------
+translator = Translator()
+translated_texts = {}
+for key, value in ui_texts.items():
+    # Wenn die Zielsprache Arabisch ist, nur UI übersetzen, nicht die Inhalte
+    if lang == "ar":
+        translated_texts[key] = value
+    else:
+        # Übersetze alles außer Arabische Schriftzeichen
+        translated_texts[key] = translator.translate(value, dest=lang).text
+
+t = translated_texts
+
+# ------------------------------
+# 4️⃣ Beispiel Anzeige
+# ------------------------------
+st.title(t["title"])
+st.header(t["dhikr_header"])
+
+if "dhikr_count" not in st.session_state:
+    st.session_state.dhikr_count = 0
+if "ramadan_streak" not in st.session_state:
+    st.session_state.ramadan_streak = 0
+if "last_day" not in st.session_state:
+    st.session_state.last_day = datetime.datetime.now().date()
+
+today = datetime.datetime.now().date()
+if today > st.session_state.last_day:
+    st.session_state.ramadan_streak += 1
+    st.session_state.last_day = today
+    st.session_state.dhikr_count = 0
+
+col1, col2, col3 = st.columns(3)
+if col1.button(t["dhikr_btn"]):
+    st.session_state.dhikr_count += 1
+if col2.button(t["reset_dhikr"]):
+    st.session_state.dhikr_count = 0
+if col3.button(t["reset_streak"]):
+    st.session_state.ramadan_streak = 0
+
+st.metric(t["dhikr_count"], st.session_state.dhikr_count)
+st.metric(t["ramadan_streak"], f"{st.session_state.ramadan_streak} Tage")
+
 
 # ------------------------------
 # 3️⃣ Design & Theme
@@ -194,3 +225,4 @@ with tabs[1]:
 # -------------------------------
 st.markdown(f"## {t['quran_player']}")
 st.markdown(f"## {t['quran_text']}")
+
