@@ -1,18 +1,18 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 from astral.sun import sun
 from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-st.set_page_config(page_title="Ramadan & Iftar Timer", page_icon="🌙")
-st.title("🌙 Ramadan Live-Planer")
+st.set_page_config(page_title="Ramadan & Gebetszeiten", page_icon="🌙")
+st.title("🌙 Ramadan & Gebetszeiten")
 
 city_input = st.text_input("Stadt eingeben:", "Aachen")
 
-geolocator = Nominatim(user_agent="ramadan_timer_final")
+geolocator = Nominatim(user_agent="ramadan_prayer_timer")
 tf = TimezoneFinder()
 
 try:
@@ -23,57 +23,53 @@ try:
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
+        # Karte
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
-        # Ramadan-Daten 2026
-        ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
-        ramadan_ende = local_tz.localize(datetime(2026, 3, 19, 23, 59, 59))
+        # Daten-Berechnung
+        city_info = LocationInfo(city_input, "Welt", tz_name, lat, lon)
+        s_data = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
 
-        # PHASE 1: Vor Ramadan
+        # 1. LIVE-TIMER (Sahur & Iftar)
+        ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
+        
         if now < ramadan_start:
             diff = ramadan_start - now
-            h, rem = divmod(int(diff.total_seconds()), 3600)
-            m, s = divmod(rem, 60)
-            st.metric("Countdown bis Ramadan", f"{diff.days}T {h%24}Std {m}Min")
-            st.info(f"📍 Standort: {location.address}")
-
-        # PHASE 2: Während Ramadan
-        elif ramadan_start <= now <= ramadan_ende:
-            city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
-            s_data = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
-            
-            # Sahur ist meistens zum Zeitpunkt 'dawn' (Morgendämmerung)
-            sahur_heute = s_data['dawn']
-            # Iftar ist 'sunset' (Sonnenuntergang)
-            iftar_heute = s_data['sunset']
-            
-            col1, col2 = st.columns(2)
-
-            # Logik für Sahur (Morgen)
-            if now < sahur_heute:
-                diff = sahur_heute - now
-                h, rem = divmod(int(diff.total_seconds()), 3600)
-                m, s = divmod(rem, 60)
-                col1.metric("Zeit bis Sahur", f"{h:02d}:{m:02d}:{s:02d}")
-                col1.write(f"Sahur-Ende: {sahur_heute.strftime('%H:%M')}")
-            else:
-                col1.write("Sahur ist für heute vorbei.")
-
-            # Logik für Iftar (Abend)
-            if now < iftar_heute:
-                diff = iftar_heute - now
-                h, rem = divmod(int(diff.total_seconds()), 3600)
-                m, s = divmod(rem, 60)
-                col2.metric("Zeit bis Iftar", f"{h:02d}:{m:02d}:{s:02d}")
-                col2.write(f"Iftar: {iftar_heute.strftime('%H:%M')}")
-            else:
-                col2.success("Guten Appetit beim Iftar!")
-        
+            st.metric("Countdown bis Ramadan", f"{diff.days}T {diff.seconds//3600}Std")
         else:
-            st.write("Ramadan 2026 ist beendet.")
+            col1, col2 = st.columns(2)
+            # Sahur (Fajr/Dawn)
+            if now < s_data['dawn']:
+                d = s_data['dawn'] - now
+                col1.metric("Zeit bis Sahur", f"{d.seconds//3600:02d}:{(d.seconds//60)%60:02d}")
+            else:
+                col1.write("Sahur vorbei")
+            # Iftar (Maghrib/Sunset)
+            if now < s_data['sunset']:
+                d = s_data['sunset'] - now
+                col2.metric("Zeit bis Iftar", f"{d.seconds//3600:02d}:{(d.seconds//60)%60:02d}")
+            else:
+                col2.success("Guten Appetit!")
 
-except Exception as e:
+        # 2. GEBETSZEITEN TABELLE
+        st.subheader("Gebetszeiten für heute")
+        
+        # Wir berechnen die Standard-Zeiten
+        prayer_times = {
+            "Fajr (Morgendämmerung)": s_data['dawn'].strftime("%H:%M"),
+            "Dhuhr (Mittag)": s_data['noon'].strftime("%H:%M"),
+            "Asr (Nachmittag)": (s_data['noon'] + (s_data['sunset'] - s_data['noon']) / 2).strftime("%H:%M"), # Annäherung
+            "Maghrib (Abend/Iftar)": s_data['sunset'].strftime("%H:%M"),
+            "Isha (Nacht)": s_data['dusk'].strftime("%H:%M")
+        }
+        
+        df_prayers = pd.DataFrame(prayer_times.items(), columns=["Gebet", "Uhrzeit"])
+        st.table(df_prayers)
+
+        st.write(f"📍 Standort: {location.address}")
+
+except Exception:
     st.write("Suche läuft...")
 
-if st.button("Jetzt aktualisieren 🔄"):
+if st.button("Aktualisieren 🔄"):
     st.rerun()
