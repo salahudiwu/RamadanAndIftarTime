@@ -37,33 +37,33 @@ def calculate_qibla(lat, lon):
     x = math.cos(my_lat) * math.tan(kaaba_lat) - math.sin(my_lat) * math.cos(kaaba_lon - my_lon)
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
-# --- 3. KORAN PLAYER MIT NAMEN ---
+# --- 3. KORAN PLAYER ---
 ip_info = get_ip_info()
 st.title("🌙 Ramadan & Quran Live")
 
 st.subheader("🎧 Koran Rezitation (Mishary Alafasy)")
 
-# Liste der Suren-Namen (Beispielhaft, die App nutzt Nummern 1-114)
-surah_names = [
-    "1. Al-Fatihah", "2. Al-Baqarah", "3. Al-Imran", "4. An-Nisa'", "5. Al-Ma'idah", 
-    "6. Al-An'am", "7. Al-A'raf", "8. Al-Anfal", "9. At-Tawbah", "10. Yunus",
-    "18. Al-Kahf", "36. Ya-Sin", "55. Ar-Rahman", "67. Al-Mulk", "112. Al-Ikhlas", "114. An-Nas"
-]
+# Auswahlbox für alle 114 Suren
+surah_idx = st.selectbox("Wähle eine Sure aus:", range(1, 115), format_func=lambda x: f"Sure {x}")
 
-# Auswahlbox (Nummern 1 bis 114)
-surah_number = st.selectbox("Wähle eine Sure:", range(1, 115), format_func=lambda x: f"Sure {x}")
+# Formatierung für den EveryAyah Server (001, 002...)
+formatted_num = f"{surah_idx:03d}"
 
-formatted_num = f"{surah_number:03d}"
-audio_url = f"https://server7.mp3quran.net{formatted_num}.mp3"
+# Stabiler Server Link
+audio_url = f"https://www.everyayah.com{formatted_num}.mp3"
 
-st.audio(audio_url, format="audio/mp3")
-st.caption(f"Quelle: mp3quran.net | Rezitator: Mishary Rashid Alafasy")
+# Player mit Fehlerabfang
+try:
+    st.audio(audio_url, format="audio/mp3")
+    st.caption(f"Quelle: EveryAyah.com | Rezitator: Mishary Rashid Alafasy")
+except:
+    st.error("Audio konnte nicht geladen werden. Bitte Seite neu laden.")
 
 # --- 4. STANDORT & TIMER ---
 city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Aachen"))
 
 try:
-    geolocator = Nominatim(user_agent="ramadan_quran_final_v1")
+    geolocator = Nominatim(user_agent="ramadan_quran_final_stable")
     location = geolocator.geocode(city_input)
     
     if location:
@@ -80,12 +80,11 @@ try:
         html_code = """
         <div style="background: rgba(255,255,255,0.1); color: #ffd700; padding: 20px; border-radius: 15px; text-align: center; font-family: sans-serif; border: 2px solid #ffd700;">
             <h3 style="margin:0;">Countdown bis Ramadan 2026</h3>
-            <h1 id="cd_timer" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
-            <p style="margin:0; font-size: 0.8rem; color: #8892b0;">Berechnet lokal auf deinem Gerät ✅</p>
+            <h1 id="cd_val" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
         </div>
         <script>
             var target = new Date("Feb 18, 2026 00:00:00").getTime();
-            function up() {
+            function update() {
                 var n = new Date().getTime();
                 var d = target - n;
                 if (d > 0) {
@@ -93,13 +92,13 @@ try:
                     var hrs = Math.floor((d % 86400000) / 3600000);
                     var min = Math.floor((d % 3600000) / 60000);
                     var sec = Math.floor((d % 60000) / 1000);
-                    document.getElementById("cd_timer").innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
-                } else { document.getElementById("cd_timer").innerHTML = "🌙 Ramadan Mubarak!"; }
+                    document.getElementById("cd_val").innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
+                } else { document.getElementById("cd_val").innerHTML = "🌙 Ramadan Mubarak!"; }
             }
-            setInterval(up, 1000); up();
+            setInterval(update, 1000); update();
         </script>
         """
-        st.components.v1.html(html_code, height=180)
+        st.components.v1.html(html_code, height=160)
 
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
@@ -113,11 +112,10 @@ try:
         ]
         st.table(pd.DataFrame(prayer_list, columns=["Gebet", "Uhrzeit"]))
         
-        st.info(f"🕋 Qibla-Richtung: {calculate_qibla(lat, lon):.2f}°")
-        st.write(f"🕒 Aktuelle Uhrzeit vor Ort: {now.strftime('%H:%M')}")
+        st.info(f"🕋 Qibla: {calculate_qibla(lat, lon):.1f}° | 🕒 {now.strftime('%H:%M')} Uhr")
 
     else:
         st.error("Stadt nicht gefunden.")
 
-except Exception:
+except Exception as e:
     st.info("Suche Standort...")
