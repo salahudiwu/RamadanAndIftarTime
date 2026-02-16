@@ -9,6 +9,8 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 
+
+
 st.set_page_config(page_title="Ramadan Community App", page_icon="🌙", layout="centered")
 
 # --- Tabs ---
@@ -60,7 +62,6 @@ with tabs[1]:
     st.info("Zeigt Sunset/Iftar Zeiten für ausgewählte Städte")
 
     
-    
 
     selected_city = st.selectbox("Stadt auswählen:", list(cities.keys()))
     lat, lon = cities[selected_city]
@@ -86,7 +87,6 @@ with tabs[1]:
         st.success(f"🌙 Zeit bis Iftar in {selected_city}: {hrs}h {mins}m {secs}s")
     else:
         st.warning(f"🍽️ Iftar in {selected_city} vorbei!")
-
 
 
 # --- 1. DESIGN ---
