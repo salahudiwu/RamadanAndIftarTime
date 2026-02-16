@@ -1,8 +1,7 @@
-streamlit-autorefresh
 astral
 geopy
 requests
 timezonefinder
 pytz
 streamlit
-streamlit-lottie
+streamlit-autorefresh
