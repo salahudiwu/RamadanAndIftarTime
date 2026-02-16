@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import datetime
 import pytz
 from astral.sun import sun
@@ -7,16 +8,54 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-st.set_page_config(page_title="Ramadan & Gebetszeiten", page_icon="🌙")
-st.title("🌙 Ramadan & Gebetszeiten")
+# --- 1. AUTOMATISCHE SPRACH-ERKENNUNG ---
+@st.cache_data(ttl=3600)
+def get_user_lang():
+    try:
+        # Checkt das Land via IP-Adresse
+        data = requests.get('https://ipapi.co').json()
+        country = data.get('country_code', 'DE')
+        # Wenn nicht DE, AT oder CH, dann Englisch
+        return 'en' if country not in ['DE', 'AT', 'CH'] else 'de'
+    except:
+        return 'de'
 
-city_input = st.text_input("Stadt eingeben:", "Berlin")
+user_lang = get_user_lang()
 
-geolocator = Nominatim(user_agent="ramadan_prayer_timer")
+# Wörterbuch für die Sprachen
+texts = {
+    "de": {
+        "title": "🌙 Ramadan & Iftar Timer",
+        "input": "Stadt eingeben:",
+        "cd": "Countdown bis Ramadan",
+        "sahur": "Zeit bis Sahur",
+        "iftar": "Zeit bis Iftar",
+        "msg": "Voraussichtlicher Beginn: 18.02.2026",
+        "finish": "Guten Appetit!"
+    },
+    "en": {
+        "title": "🌙 Ramadan & Iftar Timer",
+        "input": "Enter City:",
+        "cd": "Countdown to Ramadan",
+        "sahur": "Time until Sahur",
+        "iftar": "Time until Iftar",
+        "msg": "Expected start: 2026-02-18",
+        "finish": "Enjoy your meal!"
+    }
+}
+T = texts[user_lang]
+
+# --- 2. APP DESIGN ---
+st.set_page_config(page_title="Ramadan Timer", page_icon="🌙")
+st.title(T["title"])
+
+city_input = st.text_input(T["input"], "Aachen")
+
+geolocator = Nominatim(user_agent="ramadan_timer_global")
 tf = TimezoneFinder()
 
 try:
-    location = geolocator.geocode(city_input, language="de")
+    location = geolocator.geocode(city_input, language=user_lang)
     if location:
         lat, lon = location.latitude, location.longitude
         tz_name = tf.timezone_at(lng=lon, lat=lat)
@@ -26,50 +65,29 @@ try:
         # Karte
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
-        # Daten-Berechnung
-        city_info = LocationInfo(city_input, "Welt", tz_name, lat, lon)
-        s_data = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
-
-        # 1. LIVE-TIMER (Sahur & Iftar)
+        # Ramadan Logik
         ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
-        
+
         if now < ramadan_start:
             diff = ramadan_start - now
-            st.metric("Countdown bis Ramadan", f"{diff.days}T {diff.seconds//3600}Std")
+            h, rem = divmod(int(diff.total_seconds()), 3600)
+            m, s = divmod(rem, 60)
+            st.metric(T["cd"], f"{diff.days}T {h%24}Std {m}Min")
+            st.info(T["msg"])
         else:
-            col1, col2 = st.columns(2)
-            # Sahur (Fajr/Dawn)
-            if now < s_data['dawn']:
-                d = s_data['dawn'] - now
-                col1.metric("Zeit bis Sahur", f"{d.seconds//3600:02d}:{(d.seconds//60)%60:02d}")
-            else:
-                col1.write("Sahur vorbei")
-            # Iftar (Maghrib/Sunset)
+            city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
+            s_data = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
+            
+            # Iftar Check
             if now < s_data['sunset']:
                 d = s_data['sunset'] - now
-                col2.metric("Zeit bis Iftar", f"{d.seconds//3600:02d}:{(d.seconds//60)%60:02d}")
+                st.metric(T["iftar"], f"{d.seconds//3600:02d}:{(d.seconds//60)%60:02d}")
             else:
-                col2.success("Guten Appetit!")
+                st.success(T["finish"])
+                
+        st.write(f"📍 {location.address}")
+except:
+    st.write("...")
 
-        # 2. GEBETSZEITEN TABELLE
-        st.subheader("Gebetszeiten für heute")
-        
-        # Wir berechnen die Standard-Zeiten
-        prayer_times = {
-            "Fajr (Morgendämmerung)": s_data['dawn'].strftime("%H:%M"),
-            "Dhuhr (Mittag)": s_data['noon'].strftime("%H:%M"),
-            "Asr (Nachmittag)": (s_data['noon'] + (s_data['sunset'] - s_data['noon']) / 2).strftime("%H:%M"), # Annäherung
-            "Maghrib (Abend/Iftar)": s_data['sunset'].strftime("%H:%M"),
-            "Isha (Nacht)": s_data['dusk'].strftime("%H:%M")
-        }
-        
-        df_prayers = pd.DataFrame(prayer_times.items(), columns=["Gebet", "Uhrzeit"])
-        st.table(df_prayers)
-
-        st.write(f"📍 Standort: {location.address}")
-
-except Exception:
-    st.write("Suche läuft...")
-
-if st.button("Aktualisieren 🔄"):
+if st.button("🔄"):
     st.rerun()
