@@ -8,7 +8,7 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-# 1. DESIGN & CSS (Gegen Blur und für schönes Dunkelblau)
+# --- 1. DESIGN & CSS ---
 st.set_page_config(page_title="Ramadan Offline-Timer", page_icon="🌙")
 
 st.markdown("""
@@ -19,11 +19,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. IP-ORTUNG (Nur beim ersten Laden nötig)
+# --- 2. IP-ORTUNG ---
 @st.cache_data(ttl=3600)
 def get_ip_info():
     try:
-        return requests.get('https://ipapi.co', timeout=5).json()
+        r = requests.get('https://ipapi.co', timeout=5)
+        return r.json()
     except:
         return {"city": "Aachen", "country_code": "DE"}
 
@@ -34,9 +35,9 @@ st.title("🌙 Ramadan Live-Timer")
 # Stadt-Eingabe
 city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Aachen"))
 
-# 3. STANDORT & GEBETSZEITEN BERECHNEN
+# --- 3. STANDORT & GEBETSZEITEN ---
 try:
-    geolocator = Nominatim(user_agent="ramadan_offline_v1")
+    geolocator = Nominatim(user_agent="ramadan_offline_final")
     location = geolocator.geocode(city_input)
     
     if location:
@@ -46,17 +47,15 @@ try:
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
-        # Sonnen-Daten für die Tabelle
         city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
         s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
         
         # --- OFFLINE-TIMER BOX (JavaScript) ---
-        # Dieser Teil berechnet die Sekunden lokal auf dem Gerät des Nutzers!
         st.components.v1.html(
             f"""
             <div id="timer-box" style="background: rgba(255,255,255,0.1); color: #ffd700; padding: 20px; border-radius: 15px; text-align: center; font-family: sans-serif; border: 2px solid #ffd700;">
                 <h3 style="margin:0;">Countdown bis Ramadan 2026</h3>
-                <h1 id="countdown" style="font-size: 3rem; margin: 10px 0;">Lade...</h1>
+                <h1 id="countdown" style="font-size: 2.5rem; margin: 10px 0;">Lade...</h1>
                 <p style="margin:0; font-size: 0.8rem; color: #8892b0;">Berechnet lokal auf deinem Gerät ✅</p>
             </div>
 
@@ -79,21 +78,26 @@ try:
             update();
             </script>
             """,
-            height=200,
+            height=180,
         )
 
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
-        # Gebetszeiten Tabelle (Wird vom Server berechnet)
+        # --- GEBETSZEITEN TABELLE (FIXED) ---
         st.subheader("Gebetszeiten für heute")
-        prayers = {{
-            "Fajr (Sahur)": s['dawn'].strftime("%H:%M"),
-            "Dhuhr": s['noon'].strftime("%H:%M"),
-            "Maghrib (Iftar)": s['sunset'].strftime("%H:%M"),
-            "Isha": s['dusk'].strftime("%H:%M")
-        }}
-        st.table(pd.DataFrame(prayers.items(), columns=["Gebet", "Uhrzeit"]))
+        
+        prayer_data = [
+            ["Fajr (Sahur-Ende)", s['dawn'].strftime("%H:%M")],
+            ["Dhuhr (Mittag)", s['noon'].strftime("%H:%M")],
+            ["Maghrib (Iftar)", s['sunset'].strftime("%H:%M")],
+            ["Isha (Nacht)", s['dusk'].strftime("%H:%M")]
+        ]
+        
+        df_prayers = pd.DataFrame(prayer_data, columns=["Gebet", "Uhrzeit"])
+        st.table(df_prayers)
+        
         st.write(f"🕒 Aktuelle Zeit vor Ort: {now.strftime('%H:%M')}")
+        st.write(f"📍 {location.address}")
 
 except Exception as e:
-    st.error(f"Suche läuft oder Fehler: {e}")
+    st.info("Suche Standort...")
