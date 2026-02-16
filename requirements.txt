@@ -1,6 +1,7 @@
+streamlit
+pandas
+requests
+pytz
 astral
 geopy
-requests
 timezonefinder
-pytz
-streamlit
