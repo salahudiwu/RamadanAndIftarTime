@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from astral.sun import sun
 from astral import LocationInfo
@@ -9,6 +9,89 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 
+st.set_page_config(page_title="Ramadan Community App", page_icon="🌙", layout="centered")
+
+# --- Tabs ---
+tabs = st.tabs([
+    "📿 Gamification & Dhikr",
+    "🌙 Weltweite Iftar Zeiten"
+])
+
+# -------------------------------
+# Tab 1: Gamification & Dhikr
+# -------------------------------
+with tabs[0]:
+    st.header("📿 Dhikr & Ramadan Streak Tracker")
+
+    # Dhikr Counter
+    if "dhikr_count" not in st.session_state:
+        st.session_state.dhikr_count = 0
+    if "ramadan_streak" not in st.session_state:
+        st.session_state.ramadan_streak = 0
+    if "last_day" not in st.session_state:
+        st.session_state.last_day = datetime.now().date()
+
+    today = datetime.now().date()
+    # Reset streak if a new day
+    if today > st.session_state.last_day:
+        st.session_state.ramadan_streak += 1
+        st.session_state.last_day = today
+        st.session_state.dhikr_count = 0
+
+    col1, col2, col3 = st.columns([1,1,1])
+    if col1.button("➕ Zählen"):
+        st.session_state.dhikr_count += 1
+    if col2.button("🔄 Reset Dhikr"):
+        st.session_state.dhikr_count = 0
+    if col3.button("📅 Reset Streak"):
+        st.session_state.ramadan_streak = 0
+
+    st.metric("Dhikr Count", st.session_state.dhikr_count)
+    st.metric("Ramadan Streak", f"{st.session_state.ramadan_streak} Tage")
+
+    # Gamification Visual
+    st.progress(min(st.session_state.dhikr_count/100,1.0))
+
+# -------------------------------
+# Tab 2: Weltweite Iftar Zeiten
+# -------------------------------
+with tabs[1]:
+    st.header("🌙 Weltweite Iftar Zeiten")
+    st.info("Zeigt Sunset/Iftar Zeiten für ausgewählte Städte")
+
+    # Beispiel Städte
+    cities = {
+        "Mekka, Saudi-Arabien": (21.3891, 39.8579),
+        "Kairo, Ägypten": (30.0444, 31.2357),
+        "Istanbul, Türkei": (41.0082, 28.9784),
+        "Berlin, Deutschland": (52.5200, 13.4050),
+        "Jakarta, Indonesien": (-6.2088, 106.8456)
+    }
+
+    selected_city = st.selectbox("Stadt auswählen:", list(cities.keys()))
+    lat, lon = cities[selected_city]
+
+    # Zeitzone ermitteln
+    tf = pytz.timezone("UTC")
+    try:
+        from timezonefinder import TimezoneFinder
+        tzf = TimezoneFinder()
+        tz_name = tzf.timezone_at(lat=lat, lng=lon) or "UTC"
+        tf = pytz.timezone(tz_name)
+    except:
+        pass
+
+    # Sonnenuntergang approximieren (hier einfache Berechnung: Sunset um 18:00 Ortszeit)
+    now = datetime.now(tf)
+    sunset = datetime(now.year, now.month, now.day, 18, 0, 0, tzinfo=tf)
+    countdown = sunset - now
+
+    if countdown.total_seconds() > 0:
+        hrs, rem = divmod(int(countdown.total_seconds()),3600)
+        mins, secs = divmod(rem,60)
+        st.success(f"🌙 Zeit bis Iftar in {selected_city}: {hrs}h {mins}m {secs}s")
+    else:
+        st.warning(f"🍽️ Iftar in {selected_city} vorbei!")
 
 
 
