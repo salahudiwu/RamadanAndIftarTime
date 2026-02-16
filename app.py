@@ -148,7 +148,7 @@ if st.button("▶ Sure starten"):
 
 
 # --- 4. QURAN SUREN INTERFACE ---
-st.markdown("## 📖 Quran – Alle Suren")
+st.markdown("## 📖 Quran – ")
 
 @st.cache_data(ttl=86400)
 def get_surahs():
