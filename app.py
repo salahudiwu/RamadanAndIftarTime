@@ -8,12 +8,7 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-# --- OPTIONALE PAGE CONFIG ---
-st.set_page_config(
-    page_title="Ramadan & Iftar Timer",
-    page_icon="🌙",
-    layout="centered"
-)
+
 
 with tabs[1]:
     st.header("🌙 Ramadan Dashboard")
