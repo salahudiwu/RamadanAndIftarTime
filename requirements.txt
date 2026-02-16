@@ -1,0 +1,6 @@
+astral
+geopy
+requests
+timezonefinder
+pytz
+streamlit
