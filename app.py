@@ -9,23 +9,7 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 
-# --- PAGE CONFIG ---
-st.set_page_config(
-    page_title="Ramadan & Quran App",
-    page_icon="🌙",
-    layout="centered"
-)
 
-
-
-# --- TABS ---
-tabs = st.tabs([
-    "🌙 Dashboard",
-    "📿 Dhikr",
-    "📚 Tafsir",
-    "🕌 Kalender",
-    "🎧 Quran Audio"
-])
 
 
 # --- 1. DESIGN ---
@@ -43,7 +27,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="Ramadan & Quran App",
+    page_icon="🌙",
+    layout="centered"
+)
 
+
+
+# --- TABS ---
+tabs = st.tabs([
+    "🌙 Dashboard",
+    "📿 Dhikr",
+    "📚 Tafsir",
+    "🕌 Kalender",
+    "🎧 Quran Audio"
+])
 
 # --- 2. IP-ORTUNG ---
 @st.cache_data(ttl=3600)
