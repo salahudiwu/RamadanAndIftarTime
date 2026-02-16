@@ -15,6 +15,80 @@ st.set_page_config(
     layout="centered"
 )
 
+with tabs[0]:
+    st.header("🌙 Ramadan Dashboard")
+
+    # Countdown bis Ramadan oder Iftar
+    now = datetime.now()
+    ramadan_start = datetime(2026, 2, 18, 0, 0)
+    days_left = (ramadan_start - now).days
+    if days_left > 0:
+        st.info(f"🕌 Countdown bis Ramadan-Beginn: {days_left} Tage")
+    else:
+        st.success("🌙 Ramadan hat begonnen!")
+
+    # Fastenfortschritt (1–30 Tage)
+    ramadan_days = 30
+    today_day = min(now.day, ramadan_days)
+    progress = today_day / ramadan_days
+    st.metric("Ramadan Tag", f"{today_day}/30")
+    st.progress(progress)
+
+    # Gebetszeiten Beispiel (einfach)
+    city_input = "Berlin"  # Standard oder dynamisch
+    try:
+        geolocator = Nominatim(user_agent="ramadan_app")
+        location = geolocator.geocode(city_input)
+        lat, lon = location.latitude, location.longitude
+        tf = TimezoneFinder()
+        tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
+        local_tz = pytz.timezone(tz_name)
+        city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
+        s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
+        asr_val = s['noon'] + (s['sunset'] - s['noon']) * 0.5
+        df = pd.DataFrame([
+            ["Fajr", s['dawn'].strftime("%H:%M")],
+            ["Dhuhr", s['noon'].strftime("%H:%M")],
+            ["Asr", asr_val.strftime("%H:%M")],
+            ["Maghrib", s['sunset'].strftime("%H:%M")],
+            ["Isha", s['dusk'].strftime("%H:%M")]
+        ], columns=["Gebet", "Zeit"])
+        st.subheader("Gebetszeiten")
+        st.table(df)
+    except:
+        st.warning("Gebetszeiten konnten nicht geladen werden.")
+
+with tabs[1]:
+    st.header("📿 Dhikr Counter")
+
+    if "dhikr" not in st.session_state:
+        st.session_state.dhikr = 0
+
+    col1, col2 = st.columns(2)
+    if col1.button("➕ Zählen"):
+        st.session_state.dhikr += 1
+    if col2.button("🔄 Reset"):
+        st.session_state.dhikr = 0
+
+    st.metric("Dhikr", st.session_state.dhikr)
+
+with tabs[2]:
+    st.header("🕌 Islamischer Kalender")
+
+    try:
+        today = datetime.now().strftime("%d-%m-%Y")
+        url = f"https://api.aladhan.com/v1/gToH?date={today}"
+        r = requests.get(url, timeout=10).json()
+        hijri = r["data"]["hijri"]
+        st.metric("Hijri Datum", f"{hijri['day']} {hijri['month']['en']} {hijri['year']} AH")
+
+        if hijri["month"]["en"] == "Ramadan":
+            st.success("🌙 Ramadan Mubarak!")
+    except:
+        st.error("Kalender konnte nicht geladen werden.")
+
+
+
 # --- 1. DESIGN ---
 st.set_page_config(page_title="Ramadan & Iftar Timer", page_icon="🌙")
 st.markdown("""
@@ -206,3 +280,4 @@ except Exception as e:
     st.warning("Suren konnten nicht geladen werden.")
 
 
+    
