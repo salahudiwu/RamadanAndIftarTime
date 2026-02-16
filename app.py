@@ -9,6 +9,47 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="Ramadan & Quran App",
+    page_icon="🌙",
+    layout="centered"
+)
+
+# --- THEME TOGGLE ---
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+def toggle_theme():
+    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+
+st.button("🌗 Theme wechseln", on_click=toggle_theme)
+
+if st.session_state.theme == "dark":
+    st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(180deg, #0a192f, #020617); color: #e6f1ff; }
+    .block-container { padding-top: 2rem; }
+    button[kind="primary"] { background-color:#ffd700; color:#0a192f; border-radius:10px; font-weight:bold; }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+    .stApp { background: linear-gradient(180deg,#ffffff,#f0f0f0); color: #0a192f; }
+    .block-container { padding-top: 2rem; }
+    button[kind="primary"] { background-color:#ffd700; color:#0a192f; border-radius:10px; font-weight:bold; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- TABS ---
+tabs = st.tabs([
+    "🌙 Dashboard",
+    "📿 Dhikr",
+    "📚 Tafsir",
+    "🕌 Kalender",
+    "🎧 Quran Audio"
+])
 
 
 # --- 1. DESIGN ---
@@ -235,18 +276,4 @@ else:
     </style>
     """, unsafe_allow_html=True)  
 
-   with tabs[2]:
-    st.header("📚 Tafsir Viewer")
-
-    surah_num = st.number_input("Sure Nummer", 1, 114, 1)
-    ayah_num = st.number_input("Ayah Nummer", 1, 286, 1)
-
-    if st.button("Tafsir laden"):
-        try:
-            url = f"https://api.alquran.cloud/v1/ayah/{surah_num}:{ayah_num}/de.bubenheim"
-            r = requests.get(url).json()
-            st.success(f"Tafsir Sure {surah_num}:{ayah_num}")
-            st.markdown(f"<div style='max-height:400px; overflow-y:auto; padding:10px; border:1px solid #ffd700; border-radius:10px;'>{r['data']['text']}</div>", unsafe_allow_html=True)
-        except:
-            st.error("Tafsir konnte nicht geladen werden.")
-
+   
