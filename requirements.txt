@@ -1,7 +1,7 @@
-streamlit
-pandas
-requests
-pytz
-astral
-geopy
-timezonefinder
+streamlit>=1.35
+pandas>=2.0
+requests>=2.31
+pytz>=2023
+astral>=3.2
+geopy>=2.4
+timezonefinder>=6.4

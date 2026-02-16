@@ -29,7 +29,7 @@ def get_ip_info():
 
 ip_info = get_ip_info()
 st.title("🌙 Ramadan & Iftar Live-Timer")
-city_input = st.text_input("📍 Stadt:", value=ip_info.get("city", "Berlin"))
+city_input = st.text_input("📍 Stadt:", value=ip_info.get("city", "Aachen"))
 
 # --- 3. LOGIK ---
 try:
@@ -107,3 +107,55 @@ try:
         st.error("Stadt nicht gefunden.")
 except Exception as e:
     st.info("Suche Standort...")
+
+
+# --- 4. QURAN SUREN INTERFACE ---
+st.markdown("## 📖 Quran – Alle Suren")
+
+@st.cache_data(ttl=86400)
+def get_surahs():
+    url = "https://api.alquran.cloud/v1/surah"
+    r = requests.get(url, timeout=10)
+    return r.json()["data"]
+
+@st.cache_data(ttl=86400)
+def get_surah_text(num):
+    url = f"https://api.alquran.cloud/v1/surah/{num}/de.asad"
+    r = requests.get(url, timeout=10)
+    return r.json()["data"]
+
+try:
+    surahs = get_surahs()
+
+    # Dropdown Auswahl
+    surah_names = [f"{s['number']}. {s['englishName']}" for s in surahs]
+    selected = st.selectbox("Sure auswählen:", surah_names)
+
+    # Nummer extrahieren
+    surah_num = int(selected.split(".")[0])
+
+    # Text laden
+    surah = get_surah_text(surah_num)
+
+    # Anzeige im passenden Design
+    st.markdown(f"""
+    <div style="
+        background: rgba(255,255,255,0.05);
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #ffd700;
+        max-height: 400px;
+        overflow-y: auto;">
+        <h3 style="color:#ffd700;">{surah['englishName']} ({surah['name']})</h3>
+    """, unsafe_allow_html=True)
+
+    for ayah in surah["ayahs"]:
+        st.markdown(
+            f"<p style='margin-bottom:10px'><b>{ayah['numberInSurah']}.</b> {ayah['text']}</p>",
+            unsafe_allow_html=True
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+except Exception as e:
+    st.warning("Suren konnten nicht geladen werden.")
