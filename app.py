@@ -16,31 +16,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- THEME TOGGLE ---
-if "theme" not in st.session_state:
-    st.session_state.theme = "dark"
 
-def toggle_theme():
-    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-
-st.button("🌗 Theme wechseln", on_click=toggle_theme)
-
-if st.session_state.theme == "dark":
-    st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(180deg, #0a192f, #020617); color: #e6f1ff; }
-    .block-container { padding-top: 2rem; }
-    button[kind="primary"] { background-color:#ffd700; color:#0a192f; border-radius:10px; font-weight:bold; }
-    </style>
-    """, unsafe_allow_html=True)
-else:
-    st.markdown("""
-    <style>
-    .stApp { background: linear-gradient(180deg,#ffffff,#f0f0f0); color: #0a192f; }
-    .block-container { padding-top: 2rem; }
-    button[kind="primary"] { background-color:#ffd700; color:#0a192f; border-radius:10px; font-weight:bold; }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- TABS ---
 tabs = st.tabs([
