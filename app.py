@@ -29,7 +29,7 @@ def get_ip_info():
 
 ip_info = get_ip_info()
 st.title("🌙 Ramadan & Iftar Live-Timer")
-city_input = st.text_input("📍 Stadt:", value=ip_info.get("city", "Aachen"))
+city_input = st.text_input("📍 Stadt:", value=ip_info.get("city", "Berlin"))
 
 # --- 3. LOGIK ---
 try:
