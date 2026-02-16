@@ -11,121 +11,89 @@ from timezonefinder import TimezoneFinder
 from streamlit_autorefresh import st_autorefresh
 from streamlit_lottie import st_lottie
 
-# --- 1. DESIGN: RAMADAN NIGHT STYLE ---
-st.markdown(
-    """
-    <style>
-    .stApp { background-color: #0a192f; color: #e6f1ff; }
-    div[data-testid="stMetricValue"] {
-        color: #ffd700 !important;
-        background-color: rgba(255, 255, 255, 0.1);
-        padding: 15px; border-radius: 15px; border: 1px solid #ffd700;
-    }
-    [data-testid="stStatusWidget"] { display: none; }
-    .stTable { background-color: rgba(255, 255, 255, 0.05); border-radius: 10px; }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# --- 1. DESIGN ---
+st.set_page_config(page_title="Ramadan & Gebetszeiten", page_icon="🌙")
+st.markdown("<style>.stApp { background-color: #0a192f; color: #e6f1ff; }[data-testid='stStatusWidget'] { display: none; }</style>", unsafe_allow_html=True)
 
 # --- 2. HILFSFUNKTIONEN ---
 def load_lottieurl(url):
     try:
-        r = requests.get(url)
-        if r.status_code != 200: return None
-        return r.json()
+        return requests.get(url).json()
     except:
         return None
 
 def calculate_qibla(lat, lon):
     kaaba_lat, kaaba_lon = math.radians(21.4225), math.radians(39.8262)
     my_lat, my_lon = math.radians(lat), math.radians(lon)
-    delta_lon = kaaba_lon - my_lon
-    y = math.sin(delta_lon)
-    x = math.cos(my_lat) * math.tan(kaaba_lat) - math.sin(my_lat) * math.cos(delta_lon)
+    y = math.sin(kaaba_lon - my_lon)
+    x = math.cos(my_lat) * math.tan(kaaba_lat) - math.sin(my_lat) * math.cos(kaaba_lon - my_lon)
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 @st.cache_data(ttl=3600)
 def get_ip_info():
     try:
-        data = requests.get('https://ipapi.co').json()
-        return {"city": data.get('city', 'Aachen'), "country": data.get('country_code', 'DE')}
+        return requests.get('https://ipapi.co').json()
     except:
-        return {"city": "Aachen", "country": "DE"}
+        return {"city": "Aachen", "country_code": "DE"}
 
-# Animation laden
+# --- 3. DATEN LADEN ---
+st_autorefresh(interval=1000, key="refresh")
 ani_lantern = load_lottieurl("https://lottie.host")
-
-# Live-Update jede Sekunde
-st_autorefresh(interval=1000, key="ramadan_live_final_fix")
-
-# --- 3. APP LOGIK ---
 ip_info = get_ip_info()
-st.title("🌙 Ramadan & Gebetszeiten Live")
 
+st.title("🌙 Ramadan Live-Timer")
 if ani_lantern:
-    st_lottie(ani_lantern, height=200, key="lantern_pro")
+    st_lottie(ani_lantern, height=150)
 
-# Stadt-Eingabe
-city_input = st.text_input("📍 Standort anpassen:", value=ip_info["city"])
+city_input = st.text_input("📍 Ort anpassen:", value=ip_info.get("city", "Aachen"))
 
-geolocator = Nominatim(user_agent="ramadan_timer_pro_v25")
-tf = TimezoneFinder()
-
+# --- 4. HAUPTLOGIK ---
 try:
-    location = geolocator.geocode(city_input, language="de")
+    geolocator = Nominatim(user_agent="ramadan_v30")
+    location = geolocator.geocode(city_input)
+    
     if location:
         lat, lon = location.latitude, location.longitude
-        # Exakte Zeitzone für den Ort finden
+        tf = TimezoneFinder()
         tz_name = tf.timezone_at(lng=lon, lat=lat)
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
-        # Sonnenberechnung
+        # Sonnenzeiten
         city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
         s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
         
-        # Ramadan Start 18.02.2026
+        st.write(f"🕒 Zeit vor Ort: **{now.strftime('%H:%M:%S')}**")
+
+        # Timer-Bereich
+        col1, col2 = st.columns(2)
         ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
         
-        # Zeitanzeige zur Kontrolle
-        st.write(f"🕒 Aktuelle Uhrzeit vor Ort: **{now.strftime('%H:%M:%S')}**")
-
-        col1, col2 = st.columns(2)
-        
-        # Countdown bis Ramadan
         if now < ramadan_start:
             diff = ramadan_start - now
-            h, rem = divmod(int(diff.total_seconds()), 3600)
-            m, s_val = divmod(rem, 60)
-            col1.metric("Bis Ramadan 2026", f"{diff.days}T {h%24:02d}:{m:02d}:{s_val:02d}")
+            col1.metric("Bis Ramadan", f"{diff.days}T {diff.seconds//3600}h")
         
-        # Iftar Timer
-        iftar_time = s['sunset']
-        if now < iftar_time:
-            d = iftar_time - now
+        if now < s['sunset']:
+            d = s['sunset'] - now
             h, rem = divmod(int(d.total_seconds()), 3600)
-            m, s_val = divmod(rem, 60)
-            col2.metric("Iftar heute in", f"{h:02d}:{m:02d}:{s_val:02d}")
+            col2.metric("Iftar in", f"{h:02d}:{(rem//60)%60:02d}:{rem%60:02d}")
         else:
-            col2.success("Guten Appetit! 🍽️")
+            col2.success("Iftar war bereits!")
 
         # Karte & Qibla
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
-        st.info(f"🕋 **Qibla-Richtung:** {calculate_qibla(lat, lon):.2f}°")
-        
-        # Gebetszeiten Tabelle
+        st.info(f"🕋 Qibla: {calculate_qibla(lat, lon):.1f}°")
+
+        # Tabelle
         st.subheader("Gebetszeiten")
         asr_time = s['noon'] + (s['sunset'] - s['noon']) * 0.5 
         prayers = {
-            "Fajr (Sahur-Ende)": s['dawn'].strftime("%H:%M"),
-            "Shuruq": s['sunrise'].strftime("%H:%M"),
+            "Fajr": s['dawn'].strftime("%H:%M"),
             "Dhuhr": s['noon'].strftime("%H:%M"),
             "Asr": asr_time.strftime("%H:%M"),
             "Maghrib (Iftar)": s['sunset'].strftime("%H:%M"),
             "Isha": s['dusk'].strftime("%H:%M")
         }
-        st.table(pd.DataFrame(prayers.items(), columns=["Gebet", "Uhrzeit"]))
-
-except Exception as e:
-    st.write("Suche Standort...")
+        st.table(pd.DataFrame(prayers.items(), columns=["Gebet", "Zeit"]))
+except:
+    st.error("Fehler beim Laden der Daten. Bitte Stadt prüfen.")
