@@ -45,6 +45,65 @@ tabs = st.tabs([
     "🎧 Quran Audio"
 ])
 
+with tabs[0]:
+    st.header("🌙 Ramadan Dashboard")
+
+    # IP / Stadt
+    @st.cache_data(ttl=3600)
+    def get_ip_info():
+        try:
+            r = requests.get('https://ipapi.co', timeout=5)
+            return r.json()
+        except:
+            return {"city": "Aachen"}
+
+    ip_info = get_ip_info()
+    city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Aachen"))
+
+    # Berechnung Gebetszeiten
+    try:
+        geolocator = Nominatim(user_agent="ramadan_app_v2")
+        location = geolocator.geocode(city_input, language="de")
+        if location:
+            lat, lon = location.latitude, location.longitude
+            tf = TimezoneFinder()
+            tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
+            local_tz = pytz.timezone(tz_name)
+            now_city = datetime.now(local_tz)
+
+            city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
+            s = sun(city_info.observer, date=now_city.date(), tzinfo=local_tz)
+            asr_val = s['noon'] + (s['sunset'] - s['noon']) * 0.5
+
+            df = pd.DataFrame([
+                ["Fajr (Sahur-Ende)", s['dawn'].strftime("%H:%M")],
+                ["Dhuhr", s['noon'].strftime("%H:%M")],
+                ["Asr", asr_val.strftime("%H:%M")],
+                ["Maghrib (Iftar)", s['sunset'].strftime("%H:%M")],
+                ["Isha", s['dusk'].strftime("%H:%M")]
+            ], columns=["Gebet", "Uhrzeit"])
+            st.subheader("Gebetszeiten")
+            st.table(df)
+            st.write(f"🕒 Aktuelle Uhrzeit in {city_input}: **{now_city.strftime('%H:%M:%S')}**")
+        else:
+            st.error("Stadt nicht gefunden.")
+    except:
+        st.warning("Gebetszeiten konnten nicht geladen werden.")
+
+    # Countdown Ramadan
+    ramadan_start = datetime(2026, 2, 18, 0, 0, 0)
+    days_left = (ramadan_start - datetime.now()).days
+    if days_left > 0:
+        st.info(f"🕌 Countdown bis Ramadan-Beginn: {days_left} Tage")
+    else:
+        st.success("🌙 Ramadan hat begonnen!")
+
+    # Fortschritt
+    ramadan_days = 30
+    today_day = min(datetime.now().day, ramadan_days)
+    st.progress(today_day / ramadan_days)
+    st.metric("Ramadan Tag", f"{today_day}/30")
+
 # --- 2. IP-ORTUNG ---
 @st.cache_data(ttl=3600)
 def get_ip_info():
