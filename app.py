@@ -15,7 +15,7 @@ st.set_page_config(
     layout="centered"
 )
 
-with tabs[0]:
+with tabs[1]:
     st.header("🌙 Ramadan Dashboard")
 
     # Countdown bis Ramadan oder Iftar
@@ -58,7 +58,7 @@ with tabs[0]:
     except:
         st.warning("Gebetszeiten konnten nicht geladen werden.")
 
-with tabs[1]:
+with tabs[2]:
     st.header("📿 Dhikr Counter")
 
     if "dhikr" not in st.session_state:
@@ -72,7 +72,7 @@ with tabs[1]:
 
     st.metric("Dhikr", st.session_state.dhikr)
 
-with tabs[2]:
+with tabs[3]:
     st.header("🕌 Islamischer Kalender")
 
     try:
