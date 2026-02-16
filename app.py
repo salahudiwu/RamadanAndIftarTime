@@ -108,6 +108,45 @@ try:
 except Exception as e:
     st.info("Suche Standort...")
 
+# --- QURAN AUDIO UI ---
+
+st.markdown("## 🎧 Quran Audio Player")
+
+@st.cache_data(ttl=86400)
+def get_surah_list():
+    url = "https://api.alquran.cloud/v1/surah"
+    r = requests.get(url, timeout=10)
+    return r.json()["data"]
+
+@st.cache_data(ttl=86400)
+def get_full_surah_audio(num):
+    url = f"https://api.alquran.cloud/v1/surah/{num}/ar.alafasy"
+    r = requests.get(url, timeout=10)
+    return r.json()["data"]
+
+try:
+    surahs = get_surah_list()
+
+    # Dropdown UI
+    options = [f"{s['number']} — {s['englishName']}" for s in surahs]
+    selected_audio = st.selectbox("🎵 Sure auswählen:", options, key="audio_select")
+
+    surah_audio_num = int(selected_audio.split(" — ")[0])
+
+    # Play Button
+    if st.button("▶ Sure abspielen"):
+        audio_data = get_full_surah_audio(surah_audio_num)
+
+        st.success("Rezitation läuft…")
+
+        for ayah in audio_data["ayahs"]:
+            if "audio" in ayah:
+                st.audio(ayah["audio"], format="audio/mp3")
+
+except:
+    st.warning("Audio-Player konnte nicht geladen werden.")
+
+
 
 # --- 4. QURAN SUREN INTERFACE ---
 st.markdown("## 📖 Quran – Alle Suren")
@@ -161,25 +200,3 @@ except Exception as e:
     st.warning("Suren konnten nicht geladen werden.")
 
 
-# --- QURAN AUDIO PLAYER ---
-
-st.markdown("### 🎧 Sure anhören")
-
-@st.cache_data(ttl=86400)
-def get_surah_audio(surah_num):
-    # Mishary Rashid Alafasy Rezitation
-    url = f"https://api.alquran.cloud/v1/surah/{surah_num}/ar.alafasy"
-    r = requests.get(url, timeout=10)
-    return r.json()["data"]
-
-try:
-    audio_surah = get_surah_audio(surah_num)
-
-    st.info("▶ Rezitation starten:")
-
-    for ayah in audio_surah["ayahs"]:
-        if "audio" in ayah:
-            st.audio(ayah["audio"], format="audio/mp3")
-
-except:
-    st.warning("Audio konnte nicht geladen werden.")
