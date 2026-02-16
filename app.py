@@ -8,182 +8,103 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-# --------------------------------------------------
-# DESIGN (Mobile Glass Style)
-# --------------------------------------------------
-st.set_page_config(page_title="Ramadan Pro", page_icon="🌙")
+# --- 1. DESIGN & CSS (Anti-Blur) ---
+st.set_page_config(page_title="Ramadan Planer", page_icon="🌙")
 
 st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg,#0a192f,#112240);
-    color: white;
-}
-.block-container {
-    padding-top: 2rem;
-}
-.glass {
-    background: rgba(255,255,255,0.08);
-    padding:20px;
-    border-radius:20px;
-    backdrop-filter: blur(10px);
-    border:1px solid rgba(255,255,255,0.2);
-    margin-bottom:20px;
-}
-</style>
-""", unsafe_allow_html=True)
+    <style>
+    .stApp { background-color: #0a192f; color: #e6f1ff; }
+    [data-testid="stStatusWidget"] { display: none; }
+    .stTable { background-color: rgba(255, 255, 255, 0.05); border-radius: 10px; }
+    div[data-testid="stMetricValue"] {
+        color: #ffd700 !important;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 15px; border-radius: 15px; border: 1px solid #ffd700;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --------------------------------------------------
-# LANGUAGE SWITCH
-# --------------------------------------------------
-lang = st.selectbox("Language / Sprache", ["Deutsch", "English"])
+# --- 2. IP-ORTUNG ---
+@st.cache_data(ttl=3600)
+def get_ip_info():
+    try:
+        r = requests.get('https://ipapi.co', timeout=5)
+        return r.json()
+    except:
+        return {"city": "Aachen", "country_code": "DE"}
 
-def t(de, en):
-    return de if lang == "Deutsch" else en
+ip_info = get_ip_info()
 
-st.title("🌙 Ramadan Pro")
+st.title("🌙 Ramadan Live-Timer")
 
-# --------------------------------------------------
-# QURAN PLAYER + AUTO NEXT
-# --------------------------------------------------
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-st.subheader(t("🎧 Koran hören", "🎧 Listen to Quran"))
+# Stadt-Eingabe (Automatisch via IP)
+city_input = st.text_input("📍 Standort:", value=ip_info.get("city", "Aachen"))
 
-reciters = {
-    "Mishary Alafasy": "mishaari_raashid_al_3afaasee",
-    "Maher Al-Muaiqly": "maher_almuaiqly",
-    "Abdul Basit": "abdulbasit_mujawwad"
-}
-
-selected_reciter = st.selectbox(t("Rezitator", "Reciter"), list(reciters.keys()))
-surah = st.number_input(t("Sure (1-114)", "Surah (1-114)"), 1, 114, 1)
-
-formatted = f"{int(surah):03d}"
-audio_url = f"https://server8.mp3quran.net/{reciters[selected_reciter]}/{formatted}.mp3"
-
-# Auto-Next JS
-st.components.v1.html(f"""
-<audio id="player" controls autoplay style="width:100%">
-  <source src="{audio_url}" type="audio/mpeg">
-</audio>
-
-<script>
-var player = document.getElementById("player");
-player.onended = function() {{
-    var next = {surah} + 1;
-    if(next <= 114){{
-        window.parent.postMessage({{type: "streamlit:setComponentValue", value: next}}, "*");
-    }}
-}};
-</script>
-""", height=80)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --------------------------------------------------
-# LOCATION + PRAYER TIMES
-# --------------------------------------------------
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-st.subheader(t("📍 Standort & Gebetszeiten", "📍 Location & Prayer Times"))
-
-city = st.text_input(t("Stadt", "City"), "Aachen")
-
+# --- 3. LOGIK & BERECHNUNG ---
 try:
-    geolocator = Nominatim(user_agent="ramadan_pro")
-    location = geolocator.geocode(city)
-
+    geolocator = Nominatim(user_agent="ramadan_timer_v30")
+    location = geolocator.geocode(city_input, language="de")
+    
     if location:
         lat, lon = location.latitude, location.longitude
         tf = TimezoneFinder()
-        tz = tf.timezone_at(lng=lon, lat=lat) or "UTC"
-        local_tz = pytz.timezone(tz)
+        tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
+        local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
-        city_info = LocationInfo(city, "World", tz, lat, lon)
+        city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
         s = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
+        
+        # --- OFFLINE-TIMER BOX (JAVASCRIPT) ---
+        # Keine doppelten Klammern mehr, damit Python nicht abstürzt
+        html_code = """
+        <div style="background: rgba(255,255,255,0.1); color: #ffd700; padding: 20px; border-radius: 15px; text-align: center; font-family: sans-serif; border: 2px solid #ffd700;">
+            <h3 style="margin:0;">Countdown bis Ramadan 2026</h3>
+            <h1 id="timer_val" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
+            <p style="margin:0; font-size: 0.8rem; color: #8892b0;">Läuft lokal auf deinem Gerät ✅</p>
+        </div>
+        <script>
+            var target = new Date("Feb 18, 2026 00:00:00").getTime();
+            function update() {
+                var n = new Date().getTime();
+                var d = target - n;
+                if (d > 0) {
+                    var days = Math.floor(d / 86400000);
+                    var hrs = Math.floor((d % 86400000) / 3600000);
+                    var min = Math.floor((d % 3600000) / 60000);
+                    var sec = Math.floor((d % 60000) / 1000);
+                    document.getElementById("timer_val").innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
+                } else { document.getElementById("timer_val").innerHTML = "🌙 Ramadan Mubarak!"; }
+            }
+            setInterval(update, 1000); update();
+        </script>
+        """
+        st.components.v1.html(html_code, height=180)
 
-        asr = s['noon'] + (s['sunset'] - s['noon']) * 0.5
+        # Karte
+        st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
-        df = pd.DataFrame([
-            ["Fajr", s['dawn'].strftime("%H:%M")],
+        # --- GEBETSZEITEN TABELLE (INKL. ASR) ---
+        st.subheader("Gebetszeiten für heute")
+        # Asr Berechnung (Mitte zwischen Mittag und Sonnenuntergang)
+        asr_time = s['noon'] + (s['sunset'] - s['noon']) * 0.5 
+        
+        prayer_data = [
+            ["Fajr (Sahur-Ende)", s['dawn'].strftime("%H:%M")],
             ["Dhuhr", s['noon'].strftime("%H:%M")],
-            ["Asr", asr.strftime("%H:%M")],
+            ["Asr", asr_time.strftime("%H:%M")],
             ["Maghrib (Iftar)", s['sunset'].strftime("%H:%M")],
             ["Isha", s['dusk'].strftime("%H:%M")]
-        ], columns=["Prayer", "Time"])
+        ]
+        
+        df_prayers = pd.DataFrame(prayer_data, columns=["Gebet", "Uhrzeit"])
+        st.table(df_prayers)
+        
+        st.write(f"🕒 Aktuelle Zeit vor Ort: {now.strftime('%H:%M:%S')}")
+        st.caption(f"📍 {location.address}")
 
-        st.table(df)
+    else:
+        st.error("Stadt wurde nicht gefunden. Bitte überprüfe die Schreibweise.")
 
-        # IFTAR COUNTDOWN + SOUND
-        maghrib = s['sunset'].strftime("%b %d, %Y %H:%M:%S")
-
-        st.markdown("### 🥘 " + t("Countdown bis Iftar", "Countdown to Iftar"))
-
-        st.components.v1.html(f"""
-        <h2 id="iftar">...</h2>
-
-        <audio id="adhan">
-        <source src="https://server8.mp3quran.net/adhan/adhan.mp3" type="audio/mpeg">
-        </audio>
-
-        <script>
-        var target = new Date("{maghrib}").getTime();
-        var adhanPlayed = false;
-
-        function update() {{
-            var now = new Date().getTime();
-            var diff = target - now;
-
-            if(diff > 0){{
-                var h = Math.floor((diff % (1000*60*60*24))/(1000*60*60));
-                var m = Math.floor((diff % (1000*60*60))/(1000*60));
-                var s = Math.floor((diff % (1000*60))/1000);
-                document.getElementById("iftar").innerHTML = h+"h "+m+"m "+s+"s";
-            }} else {{
-                document.getElementById("iftar").innerHTML = "🌙 Iftar!";
-                if(!adhanPlayed){{
-                    document.getElementById("adhan").play();
-                    adhanPlayed = true;
-                }}
-            }}
-        }}
-        setInterval(update,1000);
-        update();
-        </script>
-        """, height=120)
-
-except:
-    st.error("City not found")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --------------------------------------------------
-# RAMADAN COUNTDOWN AUTO YEAR
-# --------------------------------------------------
-st.markdown('<div class="glass">', unsafe_allow_html=True)
-st.subheader("🕌 " + t("Countdown bis Ramadan", "Countdown to Ramadan"))
-
-ramadan = datetime(2026, 2, 18)
-ramadan_str = ramadan.strftime("%b %d, %Y %H:%M:%S")
-
-st.components.v1.html(f"""
-<h2 id="ramadan">...</h2>
-<script>
-var target2 = new Date("{ramadan_str}").getTime();
-
-function updateR(){{
- var now = new Date().getTime();
- var diff = target2 - now;
- if(diff>0){{
-   var d=Math.floor(diff/(1000*60*60*24));
-   document.getElementById("ramadan").innerHTML=d+" days";
- }}else{{
-   document.getElementById("ramadan").innerHTML="🌙 Ramadan Mubarak!";
- }}
-}}
-setInterval(updateR,1000);
-updateR();
-</script>
-""", height=100)
-
-st.markdown('</div>', unsafe_allow_html=True) 
+except Exception as e:
+    st.info("Suche Standort...")
