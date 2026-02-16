@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
-import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from astral.sun import sun
 from astral import LocationInfo
@@ -9,11 +8,11 @@ from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
 st.set_page_config(page_title="Ramadan & Iftar Timer", page_icon="🌙")
-st.title("🌙 Ramadan & Iftar Live-Timer")
+st.title("🌙 Ramadan Live-Planer")
 
 city_input = st.text_input("Stadt eingeben:", "Aachen")
 
-geolocator = Nominatim(user_agent="ramadan_timer_v3")
+geolocator = Nominatim(user_agent="ramadan_timer_final")
 tf = TimezoneFinder()
 
 try:
@@ -24,46 +23,57 @@ try:
         local_tz = pytz.timezone(tz_name)
         now = datetime.now(local_tz)
 
-        # Karte
         st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
 
-        # Ramadan-Zeiten 2026
+        # Ramadan-Daten 2026
         ramadan_start = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
         ramadan_ende = local_tz.localize(datetime(2026, 3, 19, 23, 59, 59))
 
-        # PLATZHALTER FÜR LIVE-TIMER
-        timer_placeholder = st.empty()
-
-        # FALL 1: Vor Ramadan
+        # PHASE 1: Vor Ramadan
         if now < ramadan_start:
             diff = ramadan_start - now
-            tage = diff.days
-            stunden, rest = divmod(diff.seconds, 3600)
-            minuten, sekunden = divmod(rest, 60)
-            timer_placeholder.metric("Countdown bis Ramadan", f"{tage}T {stunden}Std {minuten}Min")
-            st.info(f"📍 {location.address}")
+            h, rem = divmod(int(diff.total_seconds()), 3600)
+            m, s = divmod(rem, 60)
+            st.metric("Countdown bis Ramadan", f"{diff.days}T {h%24}Std {m}Min")
+            st.info(f"📍 Standort: {location.address}")
 
-        # FALL 2: Während Ramadan (Iftar Countdown)
+        # PHASE 2: Während Ramadan
         elif ramadan_start <= now <= ramadan_ende:
-            city_info = LocationInfo(city_input, "Welt", tz_name, lat, lon)
+            city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
             s_data = sun(city_info.observer, date=now.date(), tzinfo=local_tz)
+            
+            # Sahur ist meistens zum Zeitpunkt 'dawn' (Morgendämmerung)
+            sahur_heute = s_data['dawn']
+            # Iftar ist 'sunset' (Sonnenuntergang)
             iftar_heute = s_data['sunset']
             
+            col1, col2 = st.columns(2)
+
+            # Logik für Sahur (Morgen)
+            if now < sahur_heute:
+                diff = sahur_heute - now
+                h, rem = divmod(int(diff.total_seconds()), 3600)
+                m, s = divmod(rem, 60)
+                col1.metric("Zeit bis Sahur", f"{h:02d}:{m:02d}:{s:02d}")
+                col1.write(f"Sahur-Ende: {sahur_heute.strftime('%H:%M')}")
+            else:
+                col1.write("Sahur ist für heute vorbei.")
+
+            # Logik für Iftar (Abend)
             if now < iftar_heute:
                 diff = iftar_heute - now
                 h, rem = divmod(int(diff.total_seconds()), 3600)
                 m, s = divmod(rem, 60)
-                timer_placeholder.metric("Zeit bis Iftar heute", f"{h:02d}:{m:02d}:{s:02d}")
-                st.write(f"Iftar ist heute um {iftar_heute.strftime('%H:%M')} Uhr")
+                col2.metric("Zeit bis Iftar", f"{h:02d}:{m:02d}:{s:02d}")
+                col2.write(f"Iftar: {iftar_heute.strftime('%H:%M')}")
             else:
-                timer_placeholder.success("Afiyet olsun! / Guten Appetit! Der Iftar war bereits.")
+                col2.success("Guten Appetit beim Iftar!")
         
         else:
             st.write("Ramadan 2026 ist beendet.")
 
-except:
+except Exception as e:
     st.write("Suche läuft...")
 
-# Ein automatisches Refresh-Intervall (optional, alle 60 Sek)
 if st.button("Jetzt aktualisieren 🔄"):
     st.rerun()
