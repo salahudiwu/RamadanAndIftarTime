@@ -159,3 +159,27 @@ try:
 
 except Exception as e:
     st.warning("Suren konnten nicht geladen werden.")
+
+
+# --- QURAN AUDIO PLAYER ---
+
+st.markdown("### 🎧 Sure anhören")
+
+@st.cache_data(ttl=86400)
+def get_surah_audio(surah_num):
+    # Mishary Rashid Alafasy Rezitation
+    url = f"https://api.alquran.cloud/v1/surah/{surah_num}/ar.alafasy"
+    r = requests.get(url, timeout=10)
+    return r.json()["data"]
+
+try:
+    audio_surah = get_surah_audio(surah_num)
+
+    st.info("▶ Rezitation starten:")
+
+    for ayah in audio_surah["ayahs"]:
+        if "audio" in ayah:
+            st.audio(ayah["audio"], format="audio/mp3")
+
+except:
+    st.warning("Audio konnte nicht geladen werden.")
