@@ -1,37 +1,22 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime
 import pytz
-from astral.sun import sun
-from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
-st.set_page_config(page_title="Ramadan Timer", page_icon="🌙")
-st.title("🌙 Ramadan & Iftar Welt-Timer")
+st.title("🌙 Ramadan Timer & Karte")
 
-city_input = st.text_input("Stadt eingeben:", "Aachen")
-geolocator = Nominatim(user_agent="ramadan_app")
+city_input = st.text_input("Stadt:", "Aachen")
+geolocator = Nominatim(user_agent="ramadan_timer")
 tf = TimezoneFinder()
 
 try:
-    location = geolocator.geocode(city_input, language="de")
+    location = geolocator.geocode(city_input)
     if location:
-        tz_name = tf.timezone_at(lng=location.longitude, lat=location.latitude)
-        local_tz = pytz.timezone(tz_name)
-        city = LocationInfo(city_input, "Welt", tz_name, location.latitude, location.longitude)
-
-        now = datetime.now(local_tz)
-        RAMADAN_START = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0))
-
-        if now < RAMADAN_START:
-            diff = RAMADAN_START - now
-            st.metric("Countdown bis Ramadan", f"{diff.days}T {diff.seconds//3600}Std {(diff.seconds//60)%60}Min")
-        else:
-            s_data = sun(city.observer, date=now.date(), tzinfo=local_tz)
-            iftar = s_data['sunset']
-            st.metric(f"Iftar in {city.name}", iftar.strftime("%H:%M Uhr"))
-
-        if st.button("Aktualisieren"):
-            st.rerun()
+        # Karte anzeigen
+        map_data = pd.DataFrame({'lat': [location.latitude], 'lon': [location.longitude]})
+        st.map(map_data)
+        st.write(f"Koordinaten: {location.latitude}, {location.longitude}")
 except:
     st.write("Suche...")
