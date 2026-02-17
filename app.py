@@ -8,6 +8,16 @@ from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
 
+st.set_page_config(page_title="Ramadan Community App", page_icon="🌙", layout="centered")
+
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 5rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # --- Tabs ---
 tabs = st.tabs([
