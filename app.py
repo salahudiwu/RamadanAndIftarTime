@@ -11,7 +11,7 @@ from timezonefinder import TimezoneFinder
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Ramadan & Quran App", page_icon="🌙", layout="centered")
 
-# --- DESIGN ---
+# --- DESIGN & CSS ---
 st.markdown("""
 <style>
 .block-container { padding-top: 2rem; }
@@ -47,7 +47,7 @@ else:
 # --- TABS ---
 tabs = st.tabs([
     "📿 Gamification & Dhikr",
-    "🌙 Weltweite Iftar Zeiten"
+    "🌙 Weltweite Iftar Zeiten & Quran"
 ])
 
 # -------------------------------
@@ -56,6 +56,7 @@ tabs = st.tabs([
 with tabs[0]:
     st.header("📿 Dhikr & Ramadan Streak Tracker")
 
+    # Dhikr Counter
     if "dhikr_count" not in st.session_state: st.session_state.dhikr_count = 0
     if "ramadan_streak" not in st.session_state: st.session_state.ramadan_streak = 0
     if "last_day" not in st.session_state: st.session_state.last_day = datetime.now().date()
@@ -76,82 +77,131 @@ with tabs[0]:
     st.progress(min(st.session_state.dhikr_count/100,1.0))
 
 # -------------------------------
-# TAB 2: WELTWEITE IFTAR ZEITEN
+# TAB 2: WELTWEITE IFTAR ZEITEN + QURAN
 # -------------------------------
 with tabs[1]:
-    st.header("🌙 Weltweite Iftar Zeiten")
+    st.header("🌙 Weltweite Iftar Zeiten & Quran")
     st.info("Zeigt Sunset/Iftar Zeiten für ausgewählte Städte")
 
-    cities = {
-        "Mekka, Saudi-Arabien": (21.3891, 39.8579),
-        "Kairo, Ägypten": (30.0444, 31.2357),
-        "Istanbul, Türkei": (41.0082, 28.9784),
-        "Berlin, Deutschland": (52.5200, 13.4050),
-        "Karabulak, Inguschetien": (43.3130, 44.9080),
-        "Antwerpen, Belgien": (51.2194, 4.4025),
-        "Houten Castellum, Niederlande": (52.0181, 5.1789),
-        "München, Deutschland": (48.1374, 11.5755),
-        "Oulu, Finnland": (65.0121, 25.4651)
-    }
+    # --- IP-ORTUNG & Stadt-Eingabe ---
+    @st.cache_data(ttl=3600)
+    def get_ip_info():
+        try:
+            r = requests.get('https://ipapi.co', timeout=5)
+            return r.json()
+        except:
+            return {"city": "Berlin"}
 
-    selected_city = st.selectbox("Stadt auswählen:", list(cities.keys()))
-    lat, lon = cities[selected_city]
+    ip_info = get_ip_info()
+    city_input = st.text_input("📍 Standort anpassen:", value=ip_info.get("city", "Berlin"))
 
     try:
-        tf = pytz.timezone("UTC")
-        tzf = TimezoneFinder()
-        tz_name = tzf.timezone_at(lat=lat, lng=lon) or "UTC"
-        local_tz = pytz.timezone(tz_name)
+        geolocator = Nominatim(user_agent="ramadan_timer_final_v1")
+        location = geolocator.geocode(city_input, language="de")
+        
+        if location:
+            lat, lon = location.latitude, location.longitude
+            tf = TimezoneFinder()
+            tz_name = tf.timezone_at(lng=lon, lat=lat) or "UTC"
+            local_tz = pytz.timezone(tz_name)
+            
+            now_city = datetime.now(local_tz)
+            city_info = LocationInfo(city_input, "World", tz_name, lat, lon)
+            s = sun(city_info.observer, date=now_city.date(), tzinfo=local_tz)
+            
+            # LIVE TIMER mit HTML+JS
+            ramadan_start_js = local_tz.localize(datetime(2026, 2, 18, 0, 0, 0)).isoformat()
+            iftar_today_js = s['sunset'].isoformat()
+            now_city_js = now_city.isoformat()
 
-        now_city = datetime.now(local_tz)
-        city_info = LocationInfo(selected_city, "World", tz_name, lat, lon)
-        s = sun(city_info.observer, date=now_city.date(), tzinfo=local_tz)
+            html_code = f"""
+            <div style="background: rgba(255,255,255,0.1); color: #ffd700; padding: 20px; border-radius: 15px; text-align: center; font-family: sans-serif; border: 2px solid #ffd700;">
+                <h3 id="lbl" style="margin:0;">Berechne für {city_input}...</h3>
+                <h1 id="tmr" style="font-size: 2.5rem; margin: 10px 0;">...</h1>
+            </div>
+            <script>
+                var rStart = new Date("{ramadan_start_js}").getTime();
+                var iToday = new Date("{iftar_today_js}").getTime();
+                
+                function tick() {{
+                    var now = new Date().getTime();
+                    var lbl = document.getElementById("lbl");
+                    var tmr = document.getElementById("tmr");
 
-        sunset_time = s['sunset'].strftime("%H:%M")
-        st.metric(f"Sonnenuntergang / Iftar in {selected_city}", sunset_time)
-        st.write(f"🕒 Aktuelle Uhrzeit: {now_city.strftime('%H:%M:%S')}")
-        st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}))
+                    if (now < rStart) {{
+                        var d = rStart - now;
+                        lbl.innerHTML = "Countdown bis Ramadan (" + "{city_input}" + ")";
+                        var days = Math.floor(d / 86400000);
+                        var hrs = Math.floor((d % 86400000) / 3600000);
+                        var min = Math.floor((d % 3600000) / 60000);
+                        var sec = Math.floor((d % 60000) / 1000);
+                        tmr.innerHTML = days + "T " + hrs + ":" + min + ":" + sec;
+                    }} else if (now < iToday) {{
+                        var d = iToday - now;
+                        lbl.innerHTML = "Zeit bis Iftar in " + "{city_input}";
+                        var hrs = Math.floor(d / 3600000);
+                        var min = Math.floor((d % 3600000) / 60000);
+                        var sec = Math.floor((d % 60000) / 1000);
+                        tmr.innerHTML = hrs + "h " + min + "m " + sec + "s";
+                    }} else {{
+                        lbl.innerHTML = "Iftar in " + "{city_input}" + " vorbei!";
+                        tmr.innerHTML = "Guten Appetit! 🍽️";
+                    }}
+                }}
+                setInterval(tick, 1000); tick();
+            </script>
+            """
+            st.components.v1.html(html_code, height=200)
+            st.map(pd.DataFrame({'lat':[lat],'lon':[lon]}))
 
+            # Gebetszeiten
+            st.subheader("Gebetszeiten (Ortszeit)")
+            asr_val = s['noon'] + (s['sunset'] - s['noon']) * 0.5 
+            df = pd.DataFrame([
+                ["Fajr (Sahur-Ende)", s['dawn'].strftime("%H:%M")],
+                ["Dhuhr", s['noon'].strftime("%H:%M")],
+                ["Asr", asr_val.strftime("%H:%M")],
+                ["Maghrib (Iftar)", s['sunset'].strftime("%H:%M")],
+                ["Isha", s['dusk'].strftime("%H:%M")]
+            ], columns=["Gebet", "Uhrzeit"])
+            st.table(df)
+            st.write(f"🕒 Aktuelle Uhrzeit in {city_input}: **{now_city.strftime('%H:%M:%S')}**")
+
+        else:
+            st.error("Stadt nicht gefunden.")
     except Exception as e:
-        st.error("Fehler bei der Berechnung der Sonnenuntergangszeit.")
+        st.info("Suche Standort...")
 
-# -------------------------------
-# QURAN PLAYER
-# -------------------------------
-st.markdown("## 🎧 Quran Player")
+    # --- QURAN PLAYER ---
+    st.markdown("## 🎧 Quran Player")
+    @st.cache_data(ttl=86400)
+    def get_surah_list():
+        url = "https://api.alquran.cloud/v1/surah"
+        r = requests.get(url, timeout=10)
+        return r.json()["data"]
 
-@st.cache_data(ttl=86400)
-def get_surah_list():
-    url = "https://api.alquran.cloud/v1/surah"
-    r = requests.get(url, timeout=10)
-    return r.json()["data"]
+    surahs = get_surah_list()
+    options = [f"{s['number']} — {s['englishName']}" for s in surahs]
+    selected = st.selectbox("Sure auswählen:", options)
+    surah_num = int(selected.split(" — ")[0])
+    audio_url = f"https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/{surah_num}.mp3"
+    if st.button("▶ Sure starten"):
+        st.audio(audio_url, format="audio/mp3")
 
-surahs = get_surah_list()
-options = [f"{s['number']} — {s['englishName']}" for s in surahs]
-selected = st.selectbox("Sure auswählen:", options)
-surah_num = int(selected.split(" — ")[0])
-audio_url = f"https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/{surah_num}.mp3"
+    # --- QURAN TEXT ---
+    st.markdown("## 📖 Quran")
+    @st.cache_data(ttl=86400)
+    def get_surah_text(num):
+        url = f"https://api.alquran.cloud/v1/surah/{num}/de.asad"
+        r = requests.get(url, timeout=10)
+        return r.json()["data"]
 
-if st.button("▶ Sure starten"):
-    st.audio(audio_url, format="audio/mp3")
-
-# -------------------------------
-# QURAN TEXT INTERFACE
-# -------------------------------
-st.markdown("## 📖 Quran")
-
-@st.cache_data(ttl=86400)
-def get_surah_text(num):
-    url = f"https://api.alquran.cloud/v1/surah/{num}/de.asad"
-    r = requests.get(url, timeout=10)
-    return r.json()["data"]
-
-try:
-    surah = get_surah_text(surah_num)
-    st.markdown(f"<div style='background: rgba(255,255,255,0.05); padding:20px; border-radius:15px; border:1px solid #ffd700; max-height:400px; overflow-y:auto;'>"
-                f"<h3 style='color:#ffd700;'>{surah['englishName']} ({surah['name']})</h3>", unsafe_allow_html=True)
-    for ayah in surah["ayahs"]:
-        st.markdown(f"<p><b>{ayah['numberInSurah']}.</b> {ayah['text']}</p>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-except:
-    st.warning("Suren konnten nicht geladen werden.")
+    try:
+        surah = get_surah_text(surah_num)
+        st.markdown(f"<div style='background: rgba(255,255,255,0.05); padding:20px; border-radius:15px; border:1px solid #ffd700; max-height:400px; overflow-y:auto;'>"
+                    f"<h3 style='color:#ffd700;'>{surah['englishName']} ({surah['name']})</h3>", unsafe_allow_html=True)
+        for ayah in surah["ayahs"]:
+            st.markdown(f"<p><b>{ayah['numberInSurah']}.</b> {ayah['text']}</p>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+    except:
+        st.warning("Suren konnten nicht geladen werden.")
