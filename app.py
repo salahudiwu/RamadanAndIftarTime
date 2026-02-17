@@ -7,8 +7,16 @@ from astral.sun import sun
 from astral import LocationInfo
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
-from deep_translator import GoogleTranslator
 
+st.set_page_config(page_title="Ramadan Community App", page_icon="🌙", layout="centered")
+
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 5rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 
 # --- Tabs ---
@@ -336,57 +344,5 @@ else:
     .block-container { padding-top: 2rem; }
     </style>
     """, unsafe_allow_html=True)  
-
-    st.set_page_config(page_title="Ramadan Community App", page_icon="🌙", layout="centered")
-
-st.markdown("""
-<style>
-.block-container {
-    padding-top: 5rem !important;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# --- SESSION STATE INITIALISIEREN ---
-if "lang" not in st.session_state:
-    # Standard-Sprache
-    st.session_state.lang = "en"
-
-# --- SPRACHE MERKEN ---
-def set_language(selected_lang):
-    st.session_state.lang = selected_lang
-    st.session_state.lang_saved = True  # optional zum Checken
-
-# --- ÜBERSETZUNGSFUNKTION ---
-def translate(text):
-    """Übersetzt Text in die aktuelle Sprache, außer es ist Arabisch."""
-    try:
-        if any('\u0600' <= c <= '\u06FF' for c in text):
-            return text
-        return GoogleTranslator(source='auto', target=st.session_state.lang).translate(text)
-    except:
-        return text
-
-# --- SPRACHAUSWAHL --- 
-langs = ["de", "en", "ru", "fr"]
-selected_lang = st.selectbox(
-    "🌐 Sprache wählen:",
-    langs,
-    index=langs.index(st.session_state.lang),
-    key="lang_selectbox"
-)
-set_language(selected_lang)
-
-# --- BEISPIEL CONTENT ---
-st.header(translate("Willkommen zur Ramadan App!"))
-st.write(translate("Diese App merkt sich die Sprache des Benutzers."))
-
-# --- OPTIONAL: Speichern im Cache für Persistenz über Sitzungen ---
-@st.cache_data(ttl=86400)
-def save_user_language(lang):
-    return lang
-
-saved_lang = save_user_language(st.session_state.lang)
-st.write(translate(f"Aktuell gewählte Sprache: {saved_lang}"))
 
    
